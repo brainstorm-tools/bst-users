@@ -174,14 +174,26 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         
         % Compute centroids
         scouts = sSurf.Atlas(iAtlas).Scouts;
+        [brainmask, sMri] = bst_memory('GetSurfaceMask', CortexFile);
         numScouts = length(scouts);
         centroids = zeros(numScouts, 3);
         for i = 1:numScouts
             centroids(i, :) = mean(sSurf.Vertices(scouts(i).Vertices, :));
+            convertedPoint = round(cs_convert(sMri, 'scs', 'voxel', centroids(i, :)));
+            
+            % If point outside the brain, find closest point.
+            if ~brainmask(convertedPoint(1), convertedPoint(2), convertedPoint(3))
+                closestPoint = findClosestPoint(convertedPoint, brainmask);
+                disp(['Warning: Centroid point (', num2str(convertedPoint), ...
+                    ') of scout "', scouts(i).Label, '" is outside the brain. ', ...
+                    'Replacing with closest point (', num2str(closestPoint), ').']);
+                centroids(i, :) = cs_convert(sMri, 'voxel', 'scs', closestPoint);
+            end
         end
         
         % Compute grid
         [sEnvelope, sCortex] = tess_envelope(CortexFile, 'convhull', 4000, .001, []);
+        
         sEnvelope.Vertices = centroids;
         sMethod.GridOptions.Method = 'adaptive';
         sMethod.GridOptions.nLayers = 1;
@@ -200,6 +212,51 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     end
     % Return the data files in input
     OutputFiles = {sInputs.FileName};
+end
+
+% This method finds the closest point inside a mask.
+function closestPoint = findClosestPoint(initialPoint, brainmask)
+    [mx, my, mz] = size(brainmask);
+    window = [[initialPoint(1), initialPoint(1)]; ...
+        [initialPoint(2), initialPoint(2)]; ...
+        [initialPoint(3), initialPoint(3)]];
+    
+    for i = 1:10000
+        % Check around window borders if a point is now inside the mask
+        for x = window(1,1):window(1,2)
+            for y = window(2,1):window(2,2)
+                for z = window(3,1):window(3,2)
+                    if brainmask(x,y,z)
+                        closestPoint = [x, y, z];
+                        return;
+                    end
+                end
+            end
+        end
+        
+        % Expand window in every direction possible.
+        if window(1,1) > 0
+            window(1,1) = window(1,1) - 1;
+        end
+        if window(2,1) > 0
+            window(2,1) = window(2,1) - 1;
+        end
+        if window(3,1) > 0
+            window(3,1) = window(3,1) - 1;
+        end
+        if window(1,2) < mx
+            window(1,2) = window(1,2) + 1;
+        end
+        if window(2,2) < my
+            window(2,2) = window(2,2) + 1;
+        end
+        if window(3,2) < mz
+            window(3,2) = window(3,2) + 1;
+        end
+    end
+    
+    % If we've reached the maximum number of iterations, give up.
+    error('Could not find a closest point.');
 end
 
 
