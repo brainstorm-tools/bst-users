@@ -9,14 +9,15 @@ Contributions to ***this*** repository include:
 
 | Folder   | Description  |
 |--- |--- |
-| data      | Data description |
-| processes | Custom processes based on the [Brainstorm process structure](https://neuroimage.usc.edu/brainstorm/Tutorials/TutUserProcess)|
-| scripts   | Matlab scripts to handle, processing or simulate data. |
+| [data](data/)      | Data description |
+| [processes](processes/) | Custom processes based on the [Brainstorm process structure](https://neuroimage.usc.edu/brainstorm/Tutorials/TutUserProcess)|
+| [scripts](scripts/)   | Matlab scripts to handle, processing or simulate data. |
 
 To know other ways in which you can collaborate with Brainstorm, visit the [Contribute](https://neuroimage.usc.edu/brainstorm/Contribute) page.
 
-## How to contribute
-We use the [GitHub Flow](https://docs.github.com/en/get-started/quickstart/github-flow) as guideline for contributions. Thus, the general process to contribute to Brainstorm consists of **7 steps**:
+## How to share your codes
+We use the [GitHub Flow](https://docs.github.com/en/get-started/quickstart/github-flow) as guideline for contributions.  
+The general process to contribute to Brainstorm consists of **7 steps**:
 
 1. **Create your copy of the official Brainstorm repo**
 2. **Link your local repo to the official Brainstorm repo**
@@ -28,4 +29,4 @@ We use the [GitHub Flow](https://docs.github.com/en/get-started/quickstart/githu
 
 Detailed information for each step and resources to Git and GitHub can be found in the [CONTRIBUTING file for the Brainstorm repo](https://github.com/rcassani/brainstorm3/blob/master/CONTRIBUTING.md).
 
-**Do not hesitate in [contacting us](#contact) if you have any question.**
+:question: **Do not hesitate in [contacting us](https://github.com/brainstorm-tools/brainstorm3/blob/master/CONTRIBUTING.md#contact) if you have any question.**
