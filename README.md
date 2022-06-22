@@ -5,10 +5,7 @@ As the active [Brainstorm's user community](https://neuroimage.usc.edu/brainstor
 ## Creating you own processes
 If you are interested in running your own code from the Brainstorm interface and benefit from the powerful [database](https://neuroimage.usc.edu/brainstorm/Tutorials/Database) and [visualization systems](https://neuroimage.usc.edu/brainstorm/Screenshots), the best option is probably for you to [create your own Brainstorm processes](https://neuroimage.usc.edu/brainstorm/Tutorials/TutUserProcess). It can take some time to get used to this logic but it is time well invested: you will be able to exchange code easily with your collaborators and the methods you develop could immediately reach thousands of users. Once your process are stable and address a recurrent need for other Brainstorm users, we can integrate them in the [main Brainstorm distribution](https://github.com/brainstorm-tools/brainstorm3) and maintain the code for you to ensure it stays compatible with the future releases of the software.
 
-<center>
-<h4>
- Check this page on <a href="https://neuroimage.usc.edu/brainstorm/Tutorials/TutUserProcess"> How to write your own Brainstorm process</a>
-</h4> </center>
+#### :brain: Check this page on <a href="https://neuroimage.usc.edu/brainstorm/Tutorials/TutUserProcess"> How to write your own Brainstorm process</a>
 
 ### Examples
 The easiest way to write your own process function is to start working from an existing example. As such, we provide three sample processes that can help you for specific tasks:
