@@ -19,7 +19,7 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.Category    = 'Custom';
     sProcess.SubGroup    = 'Custom Processes';
     sProcess.Index       = 1000;
-    sProcess.Description = 'https://neuroimage.usc.edu/forums/t/extracting-manually-identified-events-for-further-analysis/41841/5';
+    sProcess.Description = 'https://github.com/mcp0228/Brainstorm-Custom-Processes/tree/main/process_sleepspindle_parameters#process-sleep-spindle-parameters';
     % Definition of the input accepted by this process
     sProcess.InputTypes  = {'data'};
     sProcess.OutputTypes = {'data'};
@@ -38,7 +38,7 @@ function sProcess = GetDescription() %#ok<DEFNU>
                                      'A) This process assumes that the data was already filtered between 11-16 Hz.<BR>'...
                                      'B) This process will generate 4 files - duration, frequency, amplitude and symmetry.<BR>'...
                                      'C) Each file x-axis = spindle number but the units will = Time(s). Cannot be changed.<BR>'...
-                                     'D) Follow the online tutorial which will take you to the forum post written by the<BR>'...
+                                     'D) Follow the online tutorial which will take you to the GitHub README.md written by the<BR>'...
                                      'author of this process to further understand how the process works.<BR><BR>'
                                      ];
     sProcess.options.info.Type    = 'label';
