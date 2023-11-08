@@ -84,14 +84,10 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
        DataN        = Data*-1; % The negative version of the data
        Data(end,:)  = (randi(100,1,Ntime))*10^-6; % End row which is BDF/status channel is a constant number so replaced this with randi to remove issues during findpeaks 
        DataN(end,:) = (randi(100,1,Ntime))*10^-6;
-       Data_Chan    = zeros(1,Ntime); % Row vector with Ntime X zeros
-       DataN_Chan   = zeros(1,Ntime); % Row vector with Ntime X zeros
 
             for i = 1 : Nchannels
-                Data_Chan(1,:)     = Data(i,:); % Extracts individual channel info from the data matrix
-                DataN_Chan(1,:)    = DataN(i,:); % Extracts individual channel info from the negative data matrix
-                [PosP, LocP]       = findpeaks(Data_Chan,Fs); % Find all the positive peaks and their locations in seconds
-                [NegP, LocN]       = findpeaks(DataN_Chan,Fs); % Find all the negative peaks and their locations in seconds
+                [PosP, LocP]       = findpeaks(Data(i,:),Fs); % Find all the positive peaks and their locations in seconds
+                [NegP, LocN]       = findpeaks(DataN(i,:),Fs); % Find all the negative peaks and their locations in seconds
                 [PeakPo(i,iNepochs), IndexP] = max(PosP,[],2); % Find the max positive peak per channel and index its location 
                 [PeakNe(i,iNepochs), IndexN] = max(NegP,[],2); % Find the max negative peak per channel and index its location
                 TimePP(i,iNepochs) = LocP(IndexP); % Uses the IndexP vector to find the time point of max positive peak
