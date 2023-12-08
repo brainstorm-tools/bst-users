@@ -56,13 +56,15 @@ end
 function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     % Initialize returned list of files
     OutputFiles = {};
-    Nepochs     = length(sInputs); % Numer of inputs or epochs
-    EpochN      = 1 : Nepochs; % Changes the x-axis from time (s) to epoch number n. 
-    DataMat     = in_bst(sInputs(1).FileName, [], 0); % Read the first file in the list, to obtain channel size. 
-    epochSize   = size(DataMat.F);    
-    Nchannels   = epochSize(1); % Number of ALL channels (i.e. EEG, EOG, EMG and status)
+    % Numer of inputs or epochs
+    Nepochs     = length(sInputs);
+    % Find EEG channels for each input file
+    sChannel   = bst_get('ChannelForStudy', [sInputs(1).iStudy]);
+    ChannelMat = in_bst_channel(sChannel.FileName, 'Channel');
+    eegIxs     = strcmpi({ChannelMat.Channel.Type}, 'EEG');
+    Nchannels  = sum(eegIxs); % Number of EEG channels
 
-    % Generate matrices of zeros (Nchannels X Nepochs) to concatenate results
+    % Generate matrices of zeros (N_EEGchannels X Nepochs) to concatenate results
     SS_Dur = zeros (Nchannels,Nepochs); % Spindle duration
     CountP = zeros (Nchannels,Nepochs); % Count the number of peaks
     PeakPo = zeros (Nchannels,Nepochs); % Positive peaks
@@ -72,37 +74,44 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
 
     % ===== LOAD THE DATA =====
     for iNepochs = 1 : Nepochs
-       DataMat   = in_bst(sInputs(iNepochs).FileName, [], 0);
-       epochSize = size(DataMat.F);  
-       Ntime     = epochSize(2); % Number of time samples changes depending on sleep spindle
-       Data      = DataMat.F; % Actual data containing EEG, EOG and EMG data
-       Time      = DataMat.Time(end) - DataMat.Time(1); % Time information of the recording
-       Fs        = 1 ./ (DataMat.Time(2) - DataMat.Time(1)); % Calculation of Sampling frequency
+        DataMat = in_bst(sInputs(iNepochs).FileName, [], 0);
+        Data    = DataMat.F; % Actual data containing EEG, EOG and EMG data
+        Time    = DataMat.Time(end) - DataMat.Time(1);      % Time information of the recording
+        Fs      = 1 ./ (DataMat.Time(2) - DataMat.Time(1)); % Calculation of Sampling frequency
 
-    % ===== PROCESS =====
-    % This is where the actual process of data manipulation and calculation takes place.
-       DataN        = Data*-1; % The negative version of the data
-       Data(end,:)  = (randi(100,1,Ntime))*10^-6; % End row which is BDF/status channel is a constant number so replaced this with randi to remove issues during findpeaks 
-       DataN(end,:) = (randi(100,1,Ntime))*10^-6;
+        % ===== PROCESS =====
+        % This is where the actual process of data manipulation and calculation takes place.
+        DataN = Data*-1; % The negative version of the data
 
-            for i = 1 : Nchannels
-                [PosP, LocP]       = findpeaks(Data(i,:),Fs); % Find all the positive peaks and their locations in seconds
-                [NegP, LocN]       = findpeaks(DataN(i,:),Fs); % Find all the negative peaks and their locations in seconds
-                [PeakPo(i,iNepochs), IndexP] = max(PosP,[],2); % Find the max positive peak per channel and index its location 
-                [PeakNe(i,iNepochs), IndexN] = max(NegP,[],2); % Find the max negative peak per channel and index its location
-                TimePP(i,iNepochs) = LocP(IndexP); % Uses the IndexP vector to find the time point of max positive peak
-                TimeNP(i,iNepochs) = LocN(IndexN); % Uses the IndexN vector to find the time point of max negative peak (won't be used further from here though)
-                CountP(i,iNepochs) = length(PosP); % Count the number of peak 
+        % Find EEG channels for each input file
+        sChannel = bst_get('ChannelForStudy', [sInputs(iNepochs).iStudy]);
+        ChannelMat = in_bst_channel(sChannel.FileName, 'Channel');
+        eegIxs = strcmpi({ChannelMat.Channel.Type}, 'EEG');
+        % Loop over EEG channels
+        for eegIx = 1 : length(eegIxs)
+            i = eegIxs(eegIx);
+            Data_Chan = Data(i,:); % Extracts individual channel info from the data matrix
+            % Check for flat channel
+            if sum((Data_Chan - mean(Data_Chan)).^2) == 0
+                continue;
             end
-
-       SS_Dur(:,iNepochs) = Time; % Calculation of spindle duration
-       % Spindle duration = the number of time samples-1 divided by the sampling frequency
-       SS_Fre             = 1./(SS_Dur./CountP); % Final calculation of spindle frequency
-       % Spinde frequency = the reciprocal of (the number of peaks/duration)
-       SS_Amp             = PeakPo + PeakNe; % Final calculation of spindle max peak-peak amplitude
-       % Spinde amplitude = the sum of max positive peak and negative peak
-       SS_Sym             = (TimePP./SS_Dur)*100; % Final calculation of spindle symmetry
-       % Spindle symmetry = the percentage of (the time location of max positive peak/spindle duration) 
+            % Compute spindle parameters
+            [PosP, LocP]       = findpeaks(Data(i,:),Fs);  % Find all the positive peaks and their locations in seconds
+            [NegP, LocN]       = findpeaks(DataN(i,:),Fs); % Find all the negative peaks and their locations in seconds
+            [PeakPo(i,iNepochs), IndexP] = max(PosP,[],2); % Find the max positive peak per channel and index its location
+            [PeakNe(i,iNepochs), IndexN] = max(NegP,[],2); % Find the max negative peak per channel and index its location
+            TimePP(i,iNepochs) = LocP(IndexP); % Uses the IndexP vector to find the time point of max positive peak
+            TimeNP(i,iNepochs) = LocN(IndexN); % Uses the IndexN vector to find the time point of max negative peak (won't be used further from here though)
+            CountP(i,iNepochs) = length(PosP); % Count the number of peak
+        end
+        % Spindle duration = the number of time samples-1 divided by the sampling frequency
+        SS_Dur(:,iNepochs) = Time; % Calculation of spindle duration
+        % Spinde frequency = the reciprocal of (the number of peaks/duration)
+        SS_Fre             = 1./(SS_Dur./CountP); % Final calculation of spindle frequency
+        % Spinde amplitude = the sum of max positive peak and negative peak
+        SS_Amp             = PeakPo + PeakNe; % Final calculation of spindle max peak-peak amplitude
+        % Spindle symmetry = the percentage of (the time location of max positive peak/spindle duration)
+        SS_Sym             = (TimePP./SS_Dur)*100; % Final calculation of spindle symmetry
     end
 
     % ===== SAVE THE RESULTS =====
