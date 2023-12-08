@@ -115,71 +115,55 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     end
 
     % ===== SAVE THE RESULTS =====
-    % Get the output study (Sleep Spindle Duration)
+    % Get the output Study
     iStudy = sInputs(1).iStudy;
-    % Create a new data file structure
-    DataMat             = db_template('datamat');
-    DataMat.F           = SS_Dur;
-    DataMat.Comment     = sprintf('SS_Dur (%d)', Nepochs); % Names the output file as 'SS_Dur' with the number of epochs used to generate the file.
-    DataMat.ChannelFlag = ones(epochSize(1), 1);   % List of good/bad channels (1=good, -1=bad)
-    DataMat.Time        = EpochN; % In this case this will show the number of epochs. But the units will still be "Time (s)" which cannot be changed. 
-    DataMat.DataType    = 'recordings';
-    DataMat.nAvg        = Nepochs;         % Number of epochs that were used to get this file
-    % Create a default output filename 
-    OutputFiles{1} = bst_process('GetNewFilename', fileparts(sInputs(1).FileName), 'data_SS_Dur');
-    % Save on disk
-    save(OutputFiles{1}, '-struct', 'DataMat');
-    % Register in database
-    db_add_data(iStudy, OutputFiles{1}, DataMat);
+    % Create template matrix file structure
+    sOutputBaseMat             = db_template('matrixmat');
+    sOutputBaseMat.Time        = 1 : Nepochs; % In this case this will show the number of epochs. But the units will still be "Time (s)" which cannot be changed. 
+    sOutputBaseMat.Description = {ChannelMat.Channel(eegIxs).Name}';
+    sOutputBaseMat.nAvg        = Nepochs;     % Number of epochs that were used to get this file
 
-    % Get the output study (Sleep Spindle Frequency)
-    iStudy = sInputs(1).iStudy;
-    % Create a new data file structure
-    DataMat             = db_template('datamat');
-    DataMat.F           = SS_Fre;
-    DataMat.Comment     = sprintf('SS_Fre (%d)', Nepochs); % Names the output file as 'SS_Fre' with the number of epochs used to generate the file.
-    DataMat.ChannelFlag = ones(epochSize(1), 1);   % List of good/bad channels (1=good, -1=bad)
-    DataMat.Time        = EpochN; % In this case this will show the number of epochs. But the units will still be "Time (s)" which cannot be changed. 
-    DataMat.DataType    = 'recordings';
-    DataMat.nAvg        = Nepochs;         % Number of epochs that were used to get this file
+    % Matrix file structure for Sleep Spindle Duration
+    sOutputMat         = sOutputBaseMat;
+    sOutputMat.Value   = SS_Dur;
+    sOutputMat.Comment = sprintf('SS_Dur (%d)', Nepochs);
     % Create a default output filename 
-    OutputFiles{1} = bst_process('GetNewFilename', fileparts(sInputs(1).FileName), 'data_SS_Fre');
+    OutputFiles{end+1} = bst_process('GetNewFilename', fileparts(sInputs(1).FileName), 'matrix_SS_Dur');
     % Save on disk
-    save(OutputFiles{1}, '-struct', 'DataMat');
+    save(OutputFiles{end}, '-struct', 'sOutputMat');
     % Register in database
-    db_add_data(iStudy, OutputFiles{1}, DataMat);
+    db_add_data(iStudy, OutputFiles{end}, sOutputMat);
 
-    % Get the output study (Sleep Spindle Amplitude)
-    iStudy = sInputs(1).iStudy;
-    % Create a new data file structure
-    DataMat             = db_template('datamat');
-    DataMat.F           = SS_Amp;
-    DataMat.Comment     = sprintf('SS_Amp (%d)', Nepochs); % Names the output file as 'SS_Amp' with the number of epochs used to generate the file.
-    DataMat.ChannelFlag = ones(epochSize(1), 1);   % List of good/bad channels (1=good, -1=bad)
-    DataMat.Time        = EpochN; % In this case this will show the number of epochs. But the units will still be "Time (s)" which cannot be changed. 
-    DataMat.DataType    = 'recordings';
-    DataMat.nAvg        = Nepochs;         % Number of epochs that were used to get this file
+    % Matrix file structure for Sleep Spindle Frequency
+    sOutputMat = sOutputBaseMat;
+    sOutputMat.Value   = SS_Fre;
+    sOutputMat.Comment = sprintf('SS_Fre (%d)', Nepochs); % Names the output file as 'SS_Fre' with the number of epochs used to generate the file.
     % Create a default output filename 
-    OutputFiles{1} = bst_process('GetNewFilename', fileparts(sInputs(1).FileName), 'data_SS_Amp');
+    OutputFiles{end+1} = bst_process('GetNewFilename', fileparts(sInputs(1).FileName), 'matrix_SS_Fre');
     % Save on disk
-    save(OutputFiles{1}, '-struct', 'DataMat');
+    save(OutputFiles{end}, '-struct', 'sOutputMat');
     % Register in database
-    db_add_data(iStudy, OutputFiles{1}, DataMat);
-    
-    % Get the output study (Sleep Spindle Symmetry)
-    iStudy = sInputs(1).iStudy;
-    % Create a new data file structure
-    DataMat             = db_template('datamat');
-    DataMat.F           = SS_Sym;
-    DataMat.Comment     = sprintf('SS_Sym (%d)', Nepochs); % Names the output file as 'SS_Sym' with the number of epochs used to generate the file.
-    DataMat.ChannelFlag = ones(epochSize(1), 1);   % List of good/bad channels (1=good, -1=bad)
-    DataMat.Time        = EpochN; % In this case this will show the number of epochs. But the units will still be "Time (s)" which cannot be changed. 
-    DataMat.DataType    = 'recordings';
-    DataMat.nAvg        = Nepochs;         % Number of epochs that were used to get this file
+    db_add_data(iStudy, OutputFiles{end}, sOutputMat);
+
+    % Matrix file structure for Sleep Spindle Amplitude
+    sOutputMat = sOutputBaseMat;
+    sOutputMat.Value   = SS_Amp;
+    sOutputMat.Comment = sprintf('SS_Amp (%d)', Nepochs); % Names the output file as 'SS_Amp' with the number of epochs used to generate the file.
     % Create a default output filename 
-    OutputFiles{1} = bst_process('GetNewFilename', fileparts(sInputs(1).FileName), 'data_SS_Sym');
+    OutputFiles{end+1} = bst_process('GetNewFilename', fileparts(sInputs(1).FileName), 'matrix_SS_Amp');
     % Save on disk
-    save(OutputFiles{1}, '-struct', 'DataMat');
+    save(OutputFiles{end}, '-struct', 'sOutputMat');
     % Register in database
-    db_add_data(iStudy, OutputFiles{1}, DataMat);
+    db_add_data(iStudy, OutputFiles{end}, sOutputMat);
+
+    % Matrix file structure for Sleep Spindle Symmetry
+    sOutputMat = sOutputBaseMat;
+    sOutputMat.Value   = SS_Sym;
+    sOutputMat.Comment = sprintf('SS_Sym (%d)', Nepochs); % Names the output file as 'SS_Sym' with the number of epochs used to generate the file.
+    % Create a default output filename 
+    OutputFiles{end+1} = bst_process('GetNewFilename', fileparts(sInputs(1).FileName), 'matrix_SS_Sym');
+    % Save on disk
+    save(OutputFiles{end}, '-struct', 'sOutputMat');
+    % Register in database
+    db_add_data(iStudy, OutputFiles{end}, sOutputMat);
 end
