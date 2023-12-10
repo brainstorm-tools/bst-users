@@ -89,7 +89,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         % Find EEG channels for each input file
         sChannel = bst_get('ChannelForStudy', [sInputs(iNepochs).iStudy]);
         ChannelMat = in_bst_channel(sChannel.FileName, 'Channel');
-        eegIxs = strcmpi({ChannelMat.Channel.Type}, 'EEG');
+        eegIxs = find(strcmpi({ChannelMat.Channel.Type}, 'EEG'));
         % Loop over EEG channels
         for eegIx = 1 : length(eegIxs)
             i = eegIxs(eegIx);
