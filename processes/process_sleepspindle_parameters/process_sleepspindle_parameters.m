@@ -66,6 +66,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
 
     % Generate matrices of zeros (N_EEGchannels X Nepochs) to concatenate results
     SS_Dur = zeros (Nchannels,Nepochs); % Spindle duration
+    SS_Rms = zeros (Nchannels,Nepochs); % Spindle RMS 
     CountP = zeros (Nchannels,Nepochs); % Count the number of peaks
     PeakPo = zeros (Nchannels,Nepochs); % Positive peaks
     PeakNe = zeros (Nchannels,Nepochs); % Negative peaks 
@@ -112,6 +113,8 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         SS_Amp             = PeakPo + PeakNe; % Final calculation of spindle max peak-peak amplitude
         % Spindle symmetry = the percentage of (the time location of max positive peak/spindle duration)
         SS_Sym             = (TimePP./SS_Dur)*100; % Final calculation of spindle symmetry
+        SS_Rms(:,iNepochs) = rms(Data,2); % Calculation of spindle RMS 
+        SS_Act             = SS_Amp.*SS_Dur; % Calculation of spindle activity (μVs)
     end
 
     % ===== SAVE THE RESULTS =====
@@ -162,6 +165,28 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     sOutputMat.Comment = sprintf('SS_Sym (%d)', Nepochs); % Names the output file as 'SS_Sym' with the number of epochs used to generate the file.
     % Create a default output filename 
     OutputFiles{end+1} = bst_process('GetNewFilename', fileparts(sInputs(1).FileName), 'matrix_SS_Sym');
+    % Save on disk
+    save(OutputFiles{end}, '-struct', 'sOutputMat');
+    % Register in database
+    db_add_data(iStudy, OutputFiles{end}, sOutputMat);
+
+    % Matrix file structure for Sleep Spindle RMS
+    sOutputMat = sOutputBaseMat;
+    sOutputMat.Value   = SS_Rms;
+    sOutputMat.Comment = sprintf('SS_Rms (%d)', Nepochs); % Names the output file as 'SS_Rms' with the number of epochs used to generate the file.
+    % Create a default output filename 
+    OutputFiles{end+1} = bst_process('GetNewFilename', fileparts(sInputs(1).FileName), 'matrix_SS_Rms');
+    % Save on disk
+    save(OutputFiles{end}, '-struct', 'sOutputMat');
+    % Register in database
+    db_add_data(iStudy, OutputFiles{end}, sOutputMat);
+
+    % Matrix file structure for Sleep Spindle Activity
+    sOutputMat = sOutputBaseMat;
+    sOutputMat.Value   = SS_Act;
+    sOutputMat.Comment = sprintf('SS_Act (%d)', Nepochs); % Names the output file as 'SS_Act' with the number of epochs used to generate the file.
+    % Create a default output filename 
+    OutputFiles{end+1} = bst_process('GetNewFilename', fileparts(sInputs(1).FileName), 'matrix_SS_Act');
     % Save on disk
     save(OutputFiles{end}, '-struct', 'sOutputMat');
     % Register in database
