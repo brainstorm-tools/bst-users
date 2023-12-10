@@ -91,16 +91,15 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         ChannelMat = in_bst_channel(sChannel.FileName, 'Channel');
         eegIxs = find(strcmpi({ChannelMat.Channel.Type}, 'EEG'));
         % Loop over EEG channels
-        for eegIx = 1 : length(eegIxs)
-            i = eegIxs(eegIx);
-            Data_Chan = Data(i,:); % Extracts individual channel info from the data matrix
+        for i = 1 : length(eegIxs)
+            Data_Chan = Data(eegIxs(i),:); % Extracts individual channel info from the data matrix
             % Check for flat channel
             if sum((Data_Chan - mean(Data_Chan)).^2) == 0
                 continue;
             end
             % Compute spindle parameters
-            [PosP, LocP]       = findpeaks(Data(i,:),Fs);  % Find all the positive peaks and their locations in seconds
-            [NegP, LocN]       = findpeaks(DataN(i,:),Fs); % Find all the negative peaks and their locations in seconds
+            [PosP, LocP]       = findpeaks(Data(eegIxs(i),:),Fs);  % Find all the positive peaks and their locations in seconds
+            [NegP, LocN]       = findpeaks(DataN(eegIxs(i),:),Fs); % Find all the negative peaks and their locations in seconds
             [PeakPo(i,iNepochs), IndexP] = max(PosP,[],2); % Find the max positive peak per channel and index its location
             [PeakNe(i,iNepochs), IndexN] = max(NegP,[],2); % Find the max negative peak per channel and index its location
             TimePP(i,iNepochs) = LocP(IndexP); % Uses the IndexP vector to find the time point of max positive peak
