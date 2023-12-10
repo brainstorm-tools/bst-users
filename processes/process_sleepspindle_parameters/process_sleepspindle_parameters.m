@@ -114,7 +114,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         SS_Amp             = PeakPo + PeakNe; % Final calculation of spindle max peak-peak amplitude
         % Spindle symmetry = the percentage of (the time location of max positive peak/spindle duration)
         SS_Sym             = (TimePP./SS_Dur)*100; % Final calculation of spindle symmetry
-        SS_Rms(:,iNepochs) = rms(Data,2); % Calculation of spindle RMS 
+        SS_Rms(:,iNepochs) = rms(Data(eegIxs),2); % Calculation of spindle RMS 
         SS_Act             = SS_Amp.*SS_Dur; % Calculation of spindle activity (μVs)
     end
 
