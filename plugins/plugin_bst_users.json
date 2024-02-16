@@ -1,0 +1,12 @@
+{
+  "Name": "bst-users",
+  "Version": "latest",
+  "Category": "Other",
+  "URLzip": "https://github.com/brainstorm-tools/bst-users/archive/refs/heads/master.zip",
+  "URLinfo": "https://github.com/brainstorm-tools/bst-users/",
+  "TestFile": "processes/examples/process_beamformer_test.m",
+  "LoadFolders": [
+    "*"
+  ],
+  "CompiledStatus": 0
+}
