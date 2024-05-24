@@ -40,13 +40,13 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.nInputs     = 1;
     sProcess.nMinFiles   = 1;
     % Default values for some options
-    sProcess.isSourceAbsolute = 1;
+    sProcess.isSourceAbsolute = 0;
     
     % Definition of the options
     
-    sProcess.options.channelname.Comment = 'Event name: ';
-    sProcess.options.channelname.Type    = 'text';
-    sProcess.options.channelname.Value   = '';
+    sProcess.options.Eventname.Comment = 'Event name: ';
+    sProcess.options.Eventname.Type    = 'text';
+    sProcess.options.Eventname.Value   = '';
     
     
     % === TIME WINDOW
@@ -72,68 +72,58 @@ end
 %% ===== RUN =====
 function sInput = Run(sProcess, sInput) %#ok<DEFNU>
       
-    DataMat = in_bst(sInput.FileName, [], 0);
-    Duration=cell2mat(sProcess.options.timewindow.Value(1));
-    disp(sProcess.options.channelname.Value);
+    DataMat  = in_bst(sInput.FileName, [], 0);
+    Duration = abs(sProcess.options.timewindow.Value{1});
     
-    [time,value]=windows_mean_based_on_event( DataMat, abs(Duration(1)),Duration(2), sProcess.options.channelname.Value );
+    [time,value] = windows_mean_based_on_event( DataMat, Duration(1),Duration(2), sProcess.options.Eventname.Value );
     
     if isempty(time)
         bst_report('Error',   sProcess, sInput, 'Event not found');
     end    
-    sInput.A=value;
-    sInput.TimeVector=time;
+    sInput.A = value;
+    sInput.TimeVector = time;
         
 end
-
-
-% Calculate the windows average
-% Input 
-% Output 
-
 
 function [time,value]=  windows_mean_based_on_event( sFile, duration_before, duration_after, event_name )
 %% we calculate the mean so that they are synchronised with events. Each windows begin
 % n1 samples before events start and end n2 samples after
 
-
-f= 1 / ( sFile.Time(2)-sFile.Time(1) ) ; % frequence d'échantillonage
-
-n_before=round(duration_before *f);
-n_after= round(duration_after *f);
-
-
-duration = n_after + n_before ;
-
-[chanel, sample]= size(sFile.F);
-value=zeros(chanel,duration);
-
-time=-duration_before:1/f:duration_after;
-
-% First, we extract the event start in the file
-
-event_starts=[];
-for i=1:length(  sFile.Events )
-    if ( strcmp( sFile.Events(i).label,event_name) == 1)
-        event_starts = round(sFile.Events(i).times(1,:)*f); % convert time to sample
+    if isfield(sFile,'F')
+        [nChanel, ~] = size(sFile.F);
+    else
+        [nChanel, ~] = size(sFile.ImageGridAmp);
+        sData = in_bst_data(sFile.DataFile);
+        sFile.Events = sData.Events;
     end
-end
-
-if( isempty(event_starts) )
     
-    value=[];
-    time=[];
-    return; 
-end
-
-
-for evt=event_starts
-    value=value+ sFile.F(:, evt-n_before:evt+n_after-1);
-end
-
-value=value/length(event_starts);
-
-
+    iEvent = find(strcmp({sFile.Events.label},event_name));
+    if isempty(iEvent) ||  isempty(sFile.Events(iEvent).times )
+        value = [];
+        time  = [];
+        return; 
+    end
+    
+    Event  = sFile.Events(iEvent);
+    
+    T       =  sFile.Time(2)-sFile.Time(1) ; 
+    time    = -duration_before:T:duration_after;
+    Ntime   = length(time);
+    Nepochs = length(  sFile.Events );
+    value = zeros(nChanel,Ntime,Nepochs);
+    
+    % First, we extract the event start in the file
+    
+    for iEpoch=1:Nepochs
+        iTime = panel_time('GetTimeIndices', sFile.Time, Event.times(1,iEpoch) + [ -duration_before, duration_after ]);
+        if isfield(sFile,'F')
+            value(:,:,iEpoch) = sFile.F(:,iTime);
+        else
+            value(:,:,iEpoch) = sFile.ImageGridAmp(:,iTime);
+        end
+    end
+    
+    value = mean(value, 3);
 end
 
 
