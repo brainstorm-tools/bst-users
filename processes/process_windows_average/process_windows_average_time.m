@@ -54,6 +54,14 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.options.timewindow.Type    = 'range';
     sProcess.options.timewindow.Value   =  {[-10,30], 's', 1} ;
     
+    % === Remove DC offset
+    sProcess.options.remove_DC.Comment    = 'Remove DC offset: select baseline definition';
+    sProcess.options.remove_DC.Type       = 'checkbox';
+    sProcess.options.remove_DC.Value      = 0;
+
+    sProcess.options.baselinewindow.Comment = 'Time window:';
+    sProcess.options.baselinewindow.Type    = 'baseline';
+    sProcess.options.baselinewindow.Value   =  {[-10,0], 's', 1} ;
 end
 
 
@@ -73,9 +81,13 @@ end
 function sInput = Run(sProcess, sInput) %#ok<DEFNU>
       
     DataMat  = in_bst(sInput.FileName, [], 0);
-    Duration = abs(sProcess.options.timewindow.Value{1});
+
+    options = struct('timewindow',      sProcess.options.timewindow.Value{1}, ...
+                     'remove_DC',       sProcess.options.remove_DC.Value,...
+                     'baselinewindow',  sProcess.options.baselinewindow.Value{1}, ...
+                     'Eventname',       sProcess.options.Eventname.Value);
     
-    [time,value] = windows_mean_based_on_event( DataMat, Duration(1),Duration(2), sProcess.options.Eventname.Value );
+    [time,value] = windows_mean_based_on_event( DataMat, options  );
     
     if isempty(time)
         bst_report('Error',   sProcess, sInput, 'Event not found');
@@ -85,7 +97,7 @@ function sInput = Run(sProcess, sInput) %#ok<DEFNU>
         
 end
 
-function [time,value]=  windows_mean_based_on_event( sFile, duration_before, duration_after, event_name )
+function [time,value]=  windows_mean_based_on_event( sFile, options )
 %% we calculate the mean so that they are synchronised with events. Each windows begin
 % n1 samples before events start and end n2 samples after
 
@@ -97,7 +109,7 @@ function [time,value]=  windows_mean_based_on_event( sFile, duration_before, dur
         sFile.Events = sData.Events;
     end
     
-    iEvent = find(strcmp({sFile.Events.label},event_name));
+    iEvent = find(strcmp({sFile.Events.label},options.Eventname));
     if isempty(iEvent) ||  isempty(sFile.Events(iEvent).times )
         value = [];
         time  = [];
@@ -106,20 +118,28 @@ function [time,value]=  windows_mean_based_on_event( sFile, duration_before, dur
     
     Event  = sFile.Events(iEvent);
     
-    T       =  sFile.Time(2)-sFile.Time(1) ; 
-    time    = -duration_before:T:duration_after;
+    T       = sFile.Time(2)-sFile.Time(1) ; 
+    time    = options.timewindow(1):T:options.timewindow(2);
     Ntime   = length(time);
-    Nepochs = length(  sFile.Events );
+    Nepochs = length(sFile.Events);
     value = zeros(nChanel,Ntime,Nepochs);
     
-    % First, we extract the event start in the file
     
     for iEpoch=1:Nepochs
-        iTime = panel_time('GetTimeIndices', sFile.Time, Event.times(1,iEpoch) + [ -duration_before, duration_after ]);
+        iTime = panel_time('GetTimeIndices', sFile.Time, Event.times(1,iEpoch) + [ options.timewindow(1), options.timewindow(2) ]);
         if isfield(sFile,'F')
             value(:,:,iEpoch) = sFile.F(:,iTime);
         else
             value(:,:,iEpoch) = sFile.ImageGridAmp(:,iTime);
+        end
+
+        if options.remove_DC
+            iBaseline = panel_time('GetTimeIndices', sFile.Time, Event.times(1,iEpoch) + [ options.baselinewindow(1), options.baselinewindow(2) ]);
+            if isfield(sFile,'F')
+                value(:,:,iEpoch) = value(:,:,iEpoch) - mean(sFile.F(:,iBaseline),2);
+            else
+                value(:,:,iEpoch) = value(:,:,iEpoch) - mean(sFile.ImageGridAmp(:,iBaseline),2);
+            end
         end
     end
     
