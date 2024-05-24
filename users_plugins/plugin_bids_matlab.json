@@ -1,7 +1,6 @@
 {
   "Name": "bids_matlab",
   "Version": "latest",
-  "Category": "Other",
   "URLzip": "https://github.com/bids-standard/bids-matlab/archive/refs/heads/main.zip",
   "URLinfo": "https://github.com/bids-standard/bids-matlab",
   "TestFile": "+bids/bids_matlab_version.m",
