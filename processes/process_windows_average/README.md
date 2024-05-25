@@ -5,9 +5,12 @@ Version: 0.0.1
 Status: alpha  
 
 ## Description
-This process is just a convenience way for doing windows averaging has it is described in [Nirs finger tapping tutorial ](https://neuroimage.usc.edu/brainstorm/Tutorials/NIRSFingerTapping#Window_averaging).
-It allow you to process windows average with a windows of a given size for a given set of events( even of this event is extended) and will allow to see the return to baseline / undershoot after stimulation.
+This process is equivalent of doing 
+(1) Import in databse > Use event as described here:https://neuroimage.usc.edu/brainstorm/Tutorials/Epoching
+(2) Average trial as described here: https://neuroimage.usc.edu/brainstorm/Tutorials/Averaging
 
+The only usefullness of this process is that it is able to work on result data (data localized on the cortex after source localization)
+This is mainly a workaround as "Import in database" can't be applied on result data
 
 ## Screenshots
 ![process_average_subsets screenshot](./Screenshot.png)
@@ -16,4 +19,5 @@ It allow you to process windows average with a windows of a given size for a giv
 None
 
 ## Further Update 
-Using West algorithm as in bs-_avg_file in order ton compute standart deviation. 
+- More function than only average. 
+- Rejection of trial based on the presence of rejected segment (bad events)
