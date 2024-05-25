@@ -96,17 +96,22 @@ function sInput = Run(sProcess, sInput) %#ok<DEFNU>
         sInput.events = sDataRaw.F.events;
     end
 
-    [time,value] = windows_mean_based_on_event( sInput, options  );
+    [time,value,nAvg] = windows_mean_based_on_event( sInput, options  );
     
     if isempty(time)
         bst_report('Error',   sProcess, sInput, 'Event not found');
     end    
-    sInput.A = value;
-    sInput.TimeVector = time;
-        
+
+    sInput.A            = value;
+    sInput.TimeVector   = time;
+    sInput.nAvg         = nAvg;
+    sInput.Comment = [sInput.Comment sprintf(' | Avg: %s (%d) [%d,%ds] ',options.Eventname, ...
+                                                                        nAvg, ...
+                                                                        options.timewindow(1), options.timewindow(2))];
+                                                                        
 end
 
-function [time,value]=  windows_mean_based_on_event( sInput, options )
+function [time,value,Nepochs]=  windows_mean_based_on_event( sInput, options )
 %% we calculate the mean so that they are synchronised with events. Each windows begin
 % n1 samples before events start and end n2 samples after
     [nChanel, ~] = size(sInput.A);
@@ -121,8 +126,8 @@ function [time,value]=  windows_mean_based_on_event( sInput, options )
     Event  = sInput.events(iEvent);
 
     data    = sInput.A;
-    T       = sInput.TimeVector(2)-sInput.TimeVector(1) ; 
-    time    = options.timewindow(1):T:options.timewindow(2);
+    dT      = sInput.TimeVector(2)-sInput.TimeVector(1) ; 
+    time    = options.timewindow(1):dT:options.timewindow(2);
     Ntime   = length(time);
     Nepochs = size(Event.times,2);
     value = zeros(nChanel,Ntime,Nepochs);
