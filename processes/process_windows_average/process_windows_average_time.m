@@ -60,7 +60,7 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.options.remove_DC.Value      = 0;
 
     sProcess.options.baselinewindow.Comment = 'Time window:';
-    sProcess.options.baselinewindow.Type    = 'baseline';
+    sProcess.options.baselinewindow.Type    = 'range';
     sProcess.options.baselinewindow.Value   =  {[-10,0], 's', 1} ;
 end
 
@@ -80,14 +80,23 @@ end
 %% ===== RUN =====
 function sInput = Run(sProcess, sInput) %#ok<DEFNU>
       
-    DataMat  = in_bst(sInput.FileName, [], 0);
-
     options = struct('timewindow',      sProcess.options.timewindow.Value{1}, ...
                      'remove_DC',       sProcess.options.remove_DC.Value,...
                      'baselinewindow',  sProcess.options.baselinewindow.Value{1}, ...
                      'Eventname',       sProcess.options.Eventname.Value);
     
-    [time,value] = windows_mean_based_on_event( DataMat, options  );
+    if strcmp(sInput.FileType, 'data')     % Imported data structure
+        sDataIn = in_bst_data(sInput.FileName, 'Events');
+        sInput.events = sDataIn.Events;
+    elseif strcmp(sInput.FileType, 'results') 
+        sDataIn = in_bst_data(sInput.DataFile, 'Events');
+        sInput.events = sDataIn.Events;
+    elseif strcmp(sInputs.FileType, 'raw')  % Continuous data file
+        sDataRaw = in_bst_data(sInputs.FileName, 'F');
+        sInput.events = sDataRaw.F.events;
+    end
+
+    [time,value] = windows_mean_based_on_event( sInput, options  );
     
     if isempty(time)
         bst_report('Error',   sProcess, sInput, 'Event not found');
@@ -97,49 +106,35 @@ function sInput = Run(sProcess, sInput) %#ok<DEFNU>
         
 end
 
-function [time,value]=  windows_mean_based_on_event( sFile, options )
+function [time,value]=  windows_mean_based_on_event( sInput, options )
 %% we calculate the mean so that they are synchronised with events. Each windows begin
 % n1 samples before events start and end n2 samples after
+    [nChanel, ~] = size(sInput.A);
 
-    if isfield(sFile,'F')
-        [nChanel, ~] = size(sFile.F);
-    else
-        [nChanel, ~] = size(sFile.ImageGridAmp);
-        sData = in_bst_data(sFile.DataFile);
-        sFile.Events = sData.Events;
-    end
-    
-    iEvent = find(strcmp({sFile.Events.label},options.Eventname));
-    if isempty(iEvent) ||  isempty(sFile.Events(iEvent).times )
+    iEvent = find(strcmp({sInput.events.label},options.Eventname));
+    if isempty(iEvent) ||  isempty(sInput.events(iEvent).times )
         value = [];
         time  = [];
         return; 
     end
     
-    Event  = sFile.Events(iEvent);
-    
-    T       = sFile.Time(2)-sFile.Time(1) ; 
+    Event  = sInput.events(iEvent);
+
+    data    = sInput.A;
+    T       = sInput.TimeVector(2)-sInput.TimeVector(1) ; 
     time    = options.timewindow(1):T:options.timewindow(2);
     Ntime   = length(time);
-    Nepochs = length(sFile.Events);
+    Nepochs = size(Event.times,2);
     value = zeros(nChanel,Ntime,Nepochs);
     
     
     for iEpoch=1:Nepochs
-        iTime = panel_time('GetTimeIndices', sFile.Time, Event.times(1,iEpoch) + [ options.timewindow(1), options.timewindow(2) ]);
-        if isfield(sFile,'F')
-            value(:,:,iEpoch) = sFile.F(:,iTime);
-        else
-            value(:,:,iEpoch) = sFile.ImageGridAmp(:,iTime);
-        end
+        iTime = panel_time('GetTimeIndices', sInput.TimeVector, Event.times(1,iEpoch) + [ options.timewindow(1), options.timewindow(2) ]);
+        value(:,:,iEpoch) = data(:,iTime);
 
         if options.remove_DC
-            iBaseline = panel_time('GetTimeIndices', sFile.Time, Event.times(1,iEpoch) + [ options.baselinewindow(1), options.baselinewindow(2) ]);
-            if isfield(sFile,'F')
-                value(:,:,iEpoch) = value(:,:,iEpoch) - mean(sFile.F(:,iBaseline),2);
-            else
-                value(:,:,iEpoch) = value(:,:,iEpoch) - mean(sFile.ImageGridAmp(:,iBaseline),2);
-            end
+            iBaseline = panel_time('GetTimeIndices', sInput.TimeVector, Event.times(1,iEpoch) + [ options.baselinewindow(1), options.baselinewindow(2) ]);
+            value(:,:,iEpoch) = value(:,:,iEpoch) - mean(data(:,iBaseline),2);
         end
     end
     
