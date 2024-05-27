@@ -23,7 +23,7 @@ function varargout = process_average_subsets( varargin )
 %
 % Authors: Francois Tadel, Jeremy T. Moreau, 2016
 
-macro_methodcall;
+eval(macro_method);
 end
 
 
