@@ -7,5 +7,8 @@
   "LoadFolders": [
     "processes"
   ],
+  "ExtraMenus": [["Plugin tutorial","web('https://neuroimage.usc.edu/brainstorm/Tutorials/Plugins', '-browser')"],
+                 ["Show Brainstorm license","bst_license"],
+                 ["Print cat in Matlab", "disp('=^_^=')"]],  
   "CompiledStatus": 0
 }
