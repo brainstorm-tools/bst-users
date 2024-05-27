@@ -1,0 +1,14 @@
+{
+  "Name": "bst-users",
+  "Version": "latest",
+  "URLzip": "https://github.com/brainstorm-tools/bst-users/archive/refs/heads/master.zip",
+  "URLinfo": "https://github.com/brainstorm-tools/bst-users/",
+  "TestFile": "processes/examples/process_beamformer_test.m",
+  "LoadFolders": [
+    "processes/*"
+  ],
+  "ExtraMenus": [["Plugin tutorial","web('https://neuroimage.usc.edu/brainstorm/Tutorials/Plugins', '-browser')"],
+                 ["Show Brainstorm license","bst_license"],
+                 ["Print cat in Matlab", "disp('=^_^=')"]],  
+  "CompiledStatus": 0
+}
