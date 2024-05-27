@@ -40,13 +40,13 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.nInputs     = 1;
     sProcess.nMinFiles   = 1;
     % Default values for some options
-    sProcess.isSourceAbsolute = 1;
+    sProcess.isSourceAbsolute = 0;
     
     % Definition of the options
     
-    sProcess.options.channelname.Comment = 'Event name: ';
-    sProcess.options.channelname.Type    = 'text';
-    sProcess.options.channelname.Value   = '';
+    sProcess.options.Eventname.Comment = 'Event name: ';
+    sProcess.options.Eventname.Type    = 'text';
+    sProcess.options.Eventname.Value   = '';
     
     
     % === TIME WINDOW
@@ -54,6 +54,14 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.options.timewindow.Type    = 'range';
     sProcess.options.timewindow.Value   =  {[-10,30], 's', 1} ;
     
+    % === Remove DC offset
+    sProcess.options.remove_DC.Comment    = 'Remove DC offset: select baseline definition';
+    sProcess.options.remove_DC.Type       = 'checkbox';
+    sProcess.options.remove_DC.Value      = 0;
+
+    sProcess.options.baselinewindow.Comment = 'Time window:';
+    sProcess.options.baselinewindow.Type    = 'range';
+    sProcess.options.baselinewindow.Value   =  {[-10,0], 's', 1} ;
 end
 
 
@@ -72,68 +80,70 @@ end
 %% ===== RUN =====
 function sInput = Run(sProcess, sInput) %#ok<DEFNU>
       
-    DataMat = in_bst(sInput.FileName, [], 0);
-    Duration=cell2mat(sProcess.options.timewindow.Value(1));
-    disp(sProcess.options.channelname.Value);
+    options = struct('timewindow',      sProcess.options.timewindow.Value{1}, ...
+                     'remove_DC',       sProcess.options.remove_DC.Value,...
+                     'baselinewindow',  sProcess.options.baselinewindow.Value{1}, ...
+                     'Eventname',       sProcess.options.Eventname.Value);
     
-    [time,value]=windows_mean_based_on_event( DataMat, abs(Duration(1)),Duration(2), sProcess.options.channelname.Value );
+    if strcmp(sInput.FileType, 'data')     % Imported data structure
+        sDataIn = in_bst_data(sInput.FileName, 'Events');
+        sInput.events = sDataIn.Events;
+    elseif strcmp(sInput.FileType, 'results') 
+        sDataIn = in_bst_data(sInput.DataFile, 'Events');
+        sInput.events = sDataIn.Events;
+    elseif strcmp(sInputs.FileType, 'raw')  % Continuous data file
+        sDataRaw = in_bst_data(sInputs.FileName, 'F');
+        sInput.events = sDataRaw.F.events;
+    end
+
+    [time,value,nAvg] = windows_mean_based_on_event( sInput, options  );
     
     if isempty(time)
         bst_report('Error',   sProcess, sInput, 'Event not found');
     end    
-    sInput.A=value;
-    sInput.TimeVector=time;
-        
+
+    sInput.A            = value;
+    sInput.TimeVector   = time;
+    sInput.nAvg         = nAvg;
+    sInput.Comment = [sInput.Comment sprintf(' | Avg: %s (%d) [%d,%ds] ',options.Eventname, ...
+                                                                        nAvg, ...
+                                                                        options.timewindow(1), options.timewindow(2))];
+                                                                        
 end
 
-
-% Calculate the windows average
-% Input 
-% Output 
-
-
-function [time,value]=  windows_mean_based_on_event( sFile, duration_before, duration_after, event_name )
+function [time,value,Nepochs]=  windows_mean_based_on_event( sInput, options )
 %% we calculate the mean so that they are synchronised with events. Each windows begin
 % n1 samples before events start and end n2 samples after
+    [nChanel, ~] = size(sInput.A);
 
-
-f= 1 / ( sFile.Time(2)-sFile.Time(1) ) ; % frequence d'échantillonage
-
-n_before=round(duration_before *f);
-n_after= round(duration_after *f);
-
-
-duration = n_after + n_before ;
-
-[chanel, sample]= size(sFile.F);
-value=zeros(chanel,duration);
-
-time=-duration_before:1/f:duration_after;
-
-% First, we extract the event start in the file
-
-event_starts=[];
-for i=1:length(  sFile.Events )
-    if ( strcmp( sFile.Events(i).label,event_name) == 1)
-        event_starts = round(sFile.Events(i).times(1,:)*f); % convert time to sample
+    iEvent = find(strcmp({sInput.events.label},options.Eventname));
+    if isempty(iEvent) ||  isempty(sInput.events(iEvent).times )
+        value = [];
+        time  = [];
+        return; 
     end
-end
-
-if( isempty(event_starts) )
     
-    value=[];
-    time=[];
-    return; 
-end
+    Event  = sInput.events(iEvent);
 
+    data    = sInput.A;
+    dT      = sInput.TimeVector(2)-sInput.TimeVector(1) ; 
+    time    = options.timewindow(1):dT:options.timewindow(2);
+    Ntime   = length(time);
+    Nepochs = size(Event.times,2);
+    value = zeros(nChanel,Ntime,Nepochs);
+    
+    
+    for iEpoch=1:Nepochs
+        iTime = panel_time('GetTimeIndices', sInput.TimeVector, Event.times(1,iEpoch) + [ options.timewindow(1), options.timewindow(2) ]);
+        value(:,:,iEpoch) = data(:,iTime);
 
-for evt=event_starts
-    value=value+ sFile.F(:, evt-n_before:evt+n_after-1);
-end
-
-value=value/length(event_starts);
-
-
+        if options.remove_DC
+            iBaseline = panel_time('GetTimeIndices', sInput.TimeVector, Event.times(1,iEpoch) + [ options.baselinewindow(1), options.baselinewindow(2) ]);
+            value(:,:,iEpoch) = value(:,:,iEpoch) - mean(data(:,iBaseline),2);
+        end
+    end
+    
+    value = mean(value, 3);
 end
 
 
