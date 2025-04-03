@@ -91,6 +91,9 @@ function sInput = Run(sProcess, sInput) %#ok<DEFNU>
     elseif strcmp(sInput.FileType, 'results') 
         sDataIn = in_bst_data(sInput.DataFile, 'Events');
         sInput.events = sDataIn.Events;
+
+
+        
     elseif strcmp(sInputs.FileType, 'raw')  % Continuous data file
         sDataRaw = in_bst_data(sInputs.FileName, 'F');
         sInput.events = sDataRaw.F.events;
@@ -101,6 +104,11 @@ function sInput = Run(sProcess, sInput) %#ok<DEFNU>
     if isempty(time)
         bst_report('Error',   sProcess, sInput, 'Event not found');
     end    
+
+
+    if isfield(sProcess.options, 'new_dataFIle') && ~isempty(sProcess.options.new_dataFIle)
+        sInput.DataFile = sProcess.options.new_dataFIle.Value;
+    end
 
     sInput.A            = value;
     sInput.TimeVector   = time;
@@ -126,15 +134,24 @@ function [time,value,Nepochs]=  windows_mean_based_on_event( sInput, options )
     Event  = sInput.events(iEvent);
 
     data    = sInput.A;
-    dT      = sInput.TimeVector(2)-sInput.TimeVector(1) ; 
-    time    = options.timewindow(1):dT:options.timewindow(2);
-    Ntime   = length(time);
+    
+    win     = panel_time('GetTimeIndices', sInput.TimeVector, Event.times(1,1) + [ options.timewindow(1), options.timewindow(2) ]);
+    Ntime   = length(win);
+    time    = linspace(options.timewindow(1), options.timewindow(2), Ntime);
+    
+    
     Nepochs = size(Event.times,2);
     value = zeros(nChanel,Ntime,Nepochs);
     
     
     for iEpoch=1:Nepochs
         iTime = panel_time('GetTimeIndices', sInput.TimeVector, Event.times(1,iEpoch) + [ options.timewindow(1), options.timewindow(2) ]);
+        
+        if length(iTime) < Ntime
+            continue
+        end
+        
+        iTime = iTime(1:Ntime);
         value(:,:,iEpoch) = data(:,iTime);
 
         if options.remove_DC
