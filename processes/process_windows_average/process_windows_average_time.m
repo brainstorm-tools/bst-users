@@ -30,20 +30,21 @@ function sProcess = GetDescription() %#ok<DEFNU>
     % Description the process
     sProcess.Comment     = 'Windows Average';
     sProcess.FileTag     = 'WAvg';
-    sProcess.Category    = 'Filter';
+    sProcess.Category    = 'File';
     sProcess.SubGroup    = 'Average';
     sProcess.Index       = 303;
     sProcess.Description = '';
     % Definition of the input accepted by this process
-    sProcess.InputTypes  = {'data', 'results', 'timefreq', 'matrix'};
-    sProcess.OutputTypes = {'data', 'results', 'timefreq', 'matrix'};
+    sProcess.InputTypes  = {'data', 'results'};
+    sProcess.OutputTypes = {'data', 'results'};
+
     sProcess.nInputs     = 1;
     sProcess.nMinFiles   = 1;
+    
     % Default values for some options
     sProcess.isSourceAbsolute = 0;
-    
+
     % Definition of the options
-    
     sProcess.options.Eventname.Comment = 'Event name: ';
     sProcess.options.Eventname.Type    = 'text';
     sProcess.options.Eventname.Value   = '';
@@ -78,7 +79,7 @@ end
 
 
 %% ===== RUN =====
-function sInput = Run(sProcess, sInput) %#ok<DEFNU>
+function OutputFile = Run(sProcess, sInput) %#ok<DEFNU>
       
     options = struct('timewindow',      sProcess.options.timewindow.Value{1}, ...
                      'remove_DC',       sProcess.options.remove_DC.Value,...
@@ -86,36 +87,60 @@ function sInput = Run(sProcess, sInput) %#ok<DEFNU>
                      'Eventname',       sProcess.options.Eventname.Value);
     
     if strcmp(sInput.FileType, 'data')     % Imported data structure
-        sDataIn = in_bst_data(sInput.FileName, 'Events');
-        sInput.events = sDataIn.Events;
+        sDataIn = in_bst_data(sInput.FileName );
+        sInputIn = struct('A', sDataIn.F, 'TimeVector', sDataIn.Time,  'events', sDataIn.Events); 
+
     elseif strcmp(sInput.FileType, 'results') 
-        sDataIn = in_bst_data(sInput.DataFile, 'Events');
-        sInput.events = sDataIn.Events;
-
-
+        sDataIn = in_bst_results(sInput.FileName);
+        sData = in_bst_data(sInput.DataFile,'Events');
         
-    elseif strcmp(sInputs.FileType, 'raw')  % Continuous data file
-        sDataRaw = in_bst_data(sInputs.FileName, 'F');
-        sInput.events = sDataRaw.F.events;
+        
+         if isfield(sProcess.options, 'new_dataFIle') && ~isempty(sProcess.options.new_dataFIle)
+             sDataIn.DataFile = sProcess.options.new_dataFIle.Value;
+         else
+
+            new_dataFIle =     bst_process('CallProcess', 'process_windows_average_time', {sInput.DataFile},    [], ...
+                                                                                            'Eventname',      sProcess.options.Eventname.Value, ...
+                                                                                            'timewindow',     sProcess.options.timewindow.Value{1} , ...
+                                                                                            'remove_DC',      sProcess.options.remove_DC.Value, ...
+                                                                                            'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
+                                                                                            'overwrite',      0);
+            sDataIn.DataFile =   new_dataFIle.FileName;
+         end
+
+        sInputIn = struct('A', sDataIn.ImageGridAmp, 'TimeVector', sDataIn.Time,  'events', sData.Events); 
     end
 
-    [time,value,nAvg] = windows_mean_based_on_event( sInput, options  );
+    [time, value, nAvg] = windows_mean_based_on_event( sInputIn,  options  );
     
     if isempty(time)
-        bst_report('Error',   sProcess, sInput, 'Event not found');
+        bst_report('Error',   sProcess, sInputIn, 'Event not found');
     end    
 
 
-    if isfield(sProcess.options, 'new_dataFIle') && ~isempty(sProcess.options.new_dataFIle)
-        sInput.DataFile = sProcess.options.new_dataFIle.Value;
+
+
+    sDataOut        = sDataIn; 
+    sDataOut.Time   = time; 
+    sDataOut.nAvg   = nAvg;
+    sDataOut.Comment = [sDataOut.Comment sprintf(' | Avg: %s (%d) [%d,%ds] ',options.Eventname, ...
+                                                                             nAvg, ...
+                                                                             options.timewindow(1), options.timewindow(2))];
+
+
+    if strcmp(sInput.FileType, 'data') 
+        sDataOut.F      = value;
+        sDataOut.Events = [];
+    elseif strcmp(sInput.FileType, 'results') 
+
+        sDataOut.ImageGridAmp = value;
     end
 
-    sInput.A            = value;
-    sInput.TimeVector   = time;
-    sInput.nAvg         = nAvg;
-    sInput.Comment = [sInput.Comment sprintf(' | Avg: %s (%d) [%d,%ds] ',options.Eventname, ...
-                                                                        nAvg, ...
-                                                                        options.timewindow(1), options.timewindow(2))];
+    sStudy = bst_get('Study', sInput.iStudy);
+    [~, filename] = bst_fileparts(sInput.FileName);
+    OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), [filename '_winavg']);
+    bst_save(OutputFile, sDataOut);
+    db_add_data( sInput.iStudy, OutputFile, sDataOut);
                                                                         
 end
 
