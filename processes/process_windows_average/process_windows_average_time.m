@@ -80,14 +80,7 @@ end
 
 %% ===== RUN =====
 function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
-      
-    options = struct('timewindow',      sProcess.options.timewindow.Value{1}, ...
-                     'remove_DC',       sProcess.options.remove_DC.Value,...
-                     'baselinewindow',  sProcess.options.baselinewindow.Value{1}, ...
-                     'Eventname',       sProcess.options.Eventname.Value);
-    
-    OutputFiles  = {};
-
+     
     if length(sInputs) > 1
         if strcmp(sInputs(1).FileType, 'data') 
 
@@ -96,8 +89,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                                                                                                 'Eventname',      sProcess.options.Eventname.Value, ...
                                                                                                 'timewindow',     sProcess.options.timewindow.Value{1} , ...
                                                                                                 'remove_DC',      sProcess.options.remove_DC.Value, ...
-                                                                                                'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
-                                                                                                'overwrite',      0);
+                                                                                                'baselinewindow', sProcess.options.baselinewindow.Value{1});
             end
 
         elseif strcmp(sInputs(1).FileType, 'results') 
@@ -110,8 +102,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                                                                                                 'Eventname',      sProcess.options.Eventname.Value, ...
                                                                                                 'timewindow',     sProcess.options.timewindow.Value{1} , ...
                                                                                                 'remove_DC',      sProcess.options.remove_DC.Value, ...
-                                                                                                'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
-                                                                                                'overwrite',      0);
+                                                                                                'baselinewindow', sProcess.options.baselinewindow.Value{1} );
 
                 for iFile = 1:length(sInputs)
                     OutputFile  =     bst_process('CallProcess', 'process_windows_average_time', {sInputs(iFile).FileName},    [], ...
@@ -119,8 +110,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                                                                                     'timewindow',     sProcess.options.timewindow.Value{1} , ...
                                                                                     'remove_DC',      sProcess.options.remove_DC.Value, ...
                                                                                     'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
-                                                                                    'new_dataFIle', new_dataFIle.FileName, ...
-                                                                                    'overwrite',      0);
+                                                                                    'new_dataFIle', new_dataFIle.FileName );
 
                     OutputFiles{end+1} = OutputFile.FileName;
                 end
@@ -133,6 +123,10 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         return;
     end
 
+
+    % Apply the average on one specific file. 
+
+    OutputFiles  = {};
     if strcmp(sInputs.FileType, 'data')     
         sDataIn = in_bst_data(sInputs.FileName );
 
@@ -159,6 +153,13 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
 
         sInputIn = struct('A', sDataIn.ImageGridAmp, 'TimeVector', sDataIn.Time,  'events', sData.Events); 
     end
+
+
+    options = struct('timewindow',      sProcess.options.timewindow.Value{1}, ...
+                 'remove_DC',       sProcess.options.remove_DC.Value,...
+                 'baselinewindow',  sProcess.options.baselinewindow.Value{1}, ...
+                 'Eventname',       sProcess.options.Eventname.Value);
+
 
     [time, value, nAvg] = windows_mean_based_on_event( sInputIn,  options  );
     
