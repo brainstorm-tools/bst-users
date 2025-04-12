@@ -34,6 +34,7 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.SubGroup    = 'Average';
     sProcess.Index       = 303;
     sProcess.Description = '';
+    
     % Definition of the input accepted by this process
     sProcess.InputTypes  = {'data', 'results'};
     sProcess.OutputTypes = {'data', 'results'};
@@ -41,9 +42,6 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.nInputs     = 1;
     sProcess.nMinFiles   = 1;
     
-    % Default values for some options
-    sProcess.isSourceAbsolute = 0;
-
     % Definition of the options
     sProcess.options.Eventname.Comment = 'Event name: ';
     sProcess.options.Eventname.Type    = 'text';
@@ -70,11 +68,6 @@ end
 function Comment = FormatComment(sProcess) %#ok<DEFNU>
     % Get time window
     Comment = [sProcess.Comment, ': [', process_extract_time('GetTimeString', sProcess), ']'];
-    % Absolute values 
-    if isfield(sProcess.options, 'source_abs') && sProcess.options.source_abs.Value
-        Comment = [Comment, ', abs'];
-    end
-
 end
 
 
@@ -127,38 +120,14 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     % Apply the average on one specific file. 
 
     OutputFiles  = {};
-    if strcmp(sInputs.FileType, 'data')     
-        sDataIn = in_bst_data(sInputs.FileName );
-
-        sInputIn = struct('A', sDataIn.F, 'TimeVector', sDataIn.Time,  'events', sDataIn.Events); 
-
-    elseif strcmp(sInputs.FileType, 'results') 
-        sDataIn = in_bst_results(sInputs.FileName);
-        sData = in_bst_data(sInputs.DataFile,'Events');
-        
-        
-         if isfield(sProcess.options, 'new_dataFIle') && ~isempty(sProcess.options.new_dataFIle)
-             sDataIn.DataFile = sProcess.options.new_dataFIle.Value;
-         else
-
-            new_dataFIle =     bst_process('CallProcess', 'process_windows_average_time', {sInputs.DataFile},    [], ...
-                                                                                            'Eventname',      sProcess.options.Eventname.Value, ...
-                                                                                            'timewindow',     sProcess.options.timewindow.Value{1} , ...
-                                                                                            'remove_DC',      sProcess.options.remove_DC.Value, ...
-                                                                                            'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
-                                                                                            'overwrite',      0);
-            sDataIn.DataFile =   new_dataFIle.FileName;
-         end
 
 
-        sInputIn = struct('A', sDataIn.ImageGridAmp, 'TimeVector', sDataIn.Time,  'events', sData.Events); 
-    end
+    [sDataIn, sInputIn] = load_input_data(sProcess, sInputs);
 
-
-    options = struct('timewindow',      sProcess.options.timewindow.Value{1}, ...
-                 'remove_DC',       sProcess.options.remove_DC.Value,...
-                 'baselinewindow',  sProcess.options.baselinewindow.Value{1}, ...
-                 'Eventname',       sProcess.options.Eventname.Value);
+    options             = struct('timewindow',      sProcess.options.timewindow.Value{1}, ...
+                                 'remove_DC',       sProcess.options.remove_DC.Value,...
+                                 'baselinewindow',  sProcess.options.baselinewindow.Value{1}, ...
+                                 'Eventname',       sProcess.options.Eventname.Value);
 
 
     [time, value, nAvg] = windows_mean_based_on_event( sInputIn,  options  );
@@ -166,8 +135,6 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     if isempty(time)
         bst_report('Error',   sProcess, sInputIn, 'Event not found');
     end    
-
-
 
 
     sDataOut        = sDataIn; 
@@ -242,3 +209,32 @@ end
 
 
 
+function [sDataIn, sInputIn] = load_input_data(sProcess, sInputs)
+
+    if strcmp(sInputs.FileType, 'data')     
+        sDataIn = in_bst_data(sInputs.FileName );
+        
+        sInputIn = struct('A', sDataIn.F, 'TimeVector', sDataIn.Time,  'events', sDataIn.Events); 
+        
+    elseif strcmp(sInputs.FileType, 'results') 
+        sDataIn = in_bst_results(sInputs.FileName);
+        sData = in_bst_data(sInputs.DataFile,'Events');
+        
+        
+        if isfield(sProcess.options, 'new_dataFIle') && ~isempty(sProcess.options.new_dataFIle)
+            sDataIn.DataFile = sProcess.options.new_dataFIle.Value;
+        else
+            
+            new_dataFIle =     bst_process('CallProcess', 'process_windows_average_time', {sInputs.DataFile},    [], ...
+                'Eventname',      sProcess.options.Eventname.Value, ...
+                'timewindow',     sProcess.options.timewindow.Value{1} , ...
+                'remove_DC',      sProcess.options.remove_DC.Value, ...
+                'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
+                'overwrite',      0);
+            sDataIn.DataFile =   new_dataFIle.FileName;
+        end
+        
+        
+        sInputIn = struct('A', sDataIn.ImageGridAmp, 'TimeVector', sDataIn.Time,  'events', sData.Events); 
+    end
+end
