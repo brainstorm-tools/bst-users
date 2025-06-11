@@ -73,7 +73,7 @@ end
 
 %% ===== RUN =====
 function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
-     
+     OutputFiles= {};
     if length(sInputs) > 1
         if strcmp(sInputs(1).FileType, 'data') 
 
