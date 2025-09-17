@@ -57,10 +57,24 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.options.remove_DC.Comment    = 'Remove DC offset: select baseline definition';
     sProcess.options.remove_DC.Type       = 'checkbox';
     sProcess.options.remove_DC.Value      = 0;
+    sProcess.options.remove_DC.Controller = 'dc_offset';
 
     sProcess.options.baselinewindow.Comment = 'Time window:';
     sProcess.options.baselinewindow.Type    = 'range';
     sProcess.options.baselinewindow.Value   =  {[-10,0], 's', 1} ;
+    sProcess.options.baselinewindow.Class   = 'dc_offset';
+
+    % === Filter bad trials
+    sProcess.options.filter_trials.Comment    = 'Filter bad trials';
+    sProcess.options.filter_trials.Type       = 'checkbox';
+    sProcess.options.filter_trials.Value      = 0;
+    sProcess.options.filter_trials.Controller = 'trials_info';
+
+    sProcess.options.trials_info.Comment = 'Trials list  [coma-separated list] (-1 for bad trials, 1 for good trials)';
+    sProcess.options.trials_info.Type    = 'text';
+    sProcess.options.trials_info.Value   = '';     
+    sProcess.options.trials_info.Class   = 'trials_info';
+
 end
 
 
@@ -89,7 +103,9 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                                                                                                 'Eventname',      sProcess.options.Eventname.Value, ...
                                                                                                 'timewindow',     sProcess.options.timewindow.Value{1} , ...
                                                                                                 'remove_DC',      sProcess.options.remove_DC.Value, ...
-                                                                                                'baselinewindow', sProcess.options.baselinewindow.Value{1});
+                                                                                                'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
+                                                                                                'filter_trials',   sProcess.options.filter_trials.Value, ...
+                                                                                                'trials_info',     sProcess.options.trials_info.Value);
             end
 
         elseif strcmp(sInputs(1).FileType, 'results') 
@@ -102,7 +118,9 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                                                                                                     'Eventname',      sProcess.options.Eventname.Value, ...
                                                                                                     'timewindow',     sProcess.options.timewindow.Value{1} , ...
                                                                                                     'remove_DC',      sProcess.options.remove_DC.Value, ...
-                                                                                                    'baselinewindow', sProcess.options.baselinewindow.Value{1} );
+                                                                                                    'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
+                                                                                                    'filter_trials',   sProcess.options.filter_trials.Value, ...
+                                                                                                    'trials_info',     sProcess.options.trials_info.Value);
                     for iOutput = 1:length(OutputFile)
                         OutputFiles{end+1} = OutputFile(iOutput).FileName;
                     end
@@ -115,7 +133,9 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                                                                                                 'Eventname',      sProcess.options.Eventname.Value, ...
                                                                                                 'timewindow',     sProcess.options.timewindow.Value{1} , ...
                                                                                                 'remove_DC',      sProcess.options.remove_DC.Value, ...
-                                                                                                'baselinewindow', sProcess.options.baselinewindow.Value{1} );
+                                                                                                'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
+                                                                                                'filter_trials',   sProcess.options.filter_trials.Value, ...
+                                                                                                'trials_info',     sProcess.options.trials_info.Value);
 
                 for iFile = 1:length(sInputs)
                     OutputFile  =     bst_process('CallProcess', 'process_windows_average_time', {sInputs(iFile).FileName},    [], ...
@@ -123,7 +143,9 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                                                                                     'timewindow',     sProcess.options.timewindow.Value{1} , ...
                                                                                     'remove_DC',      sProcess.options.remove_DC.Value, ...
                                                                                     'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
-                                                                                    'new_dataFIle', new_dataFIle.FileName );
+                                                                                    'filter_trials',  sProcess.options.filter_trials.Value, ...
+                                                                                    'trials_info',    sProcess.options.trials_info.Value, ...
+                                                                                    'new_dataFIle',   new_dataFIle.FileName );
 
                     OutputFiles{end+1} = OutputFile.FileName;
                 end
@@ -147,7 +169,10 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     options             = struct('timewindow',      sProcess.options.timewindow.Value{1}, ...
                                  'remove_DC',       sProcess.options.remove_DC.Value,...
                                  'baselinewindow',  sProcess.options.baselinewindow.Value{1}, ...
-                                 'Eventname',       sProcess.options.Eventname.Value);
+                                 'Eventname',       sProcess.options.Eventname.Value, ...
+                                 'filter_trials',   sProcess.options.filter_trials.Value, ...
+                                 'trials_info',     sProcess.options.trials_info.Value);
+    
 
 
     [time, value, nAvg] = windows_mean_based_on_event( sInputIn,  options  );
@@ -204,12 +229,12 @@ function [time, epochValues, Nepochs]=  windows_mean_based_on_event( sInput, opt
     
     Nepochs     = size(Event.times,2);
     epochValues = zeros(nChanel, Ntime, Nepochs);
-    isIncluded  = true(1, Nepochs);
+    isIncluded  = getTrialsInfo(Nepochs, options);
     
     for iEpoch=1:Nepochs
         iTime = panel_time('GetTimeIndices', sInput.TimeVector, Event.times(1,iEpoch) + [ options.timewindow(1), options.timewindow(2) ]);
         
-        if length(iTime) < Ntime
+        if ~isIncluded(iEpoch) || length(iTime) < Ntime
             isIncluded(iEpoch) = false;
             continue
         end
@@ -257,6 +282,28 @@ function [sDataIn, sInputIn] = load_input_data(sProcess, sInputs)
         
         
         sInputIn = struct('A', sDataIn.ImageGridAmp, 'TimeVector', sDataIn.Time,  'events', sData.Events); 
+    end
+end
+
+function isIncluded  = getTrialsInfo(Nepochs, options)
+    isIncluded = true(1, Nepochs);
+
+    if ~options.filter_trials
+        return;
+    end
+    
+
+    trials_info = strsplit(strrep(options.trials_info,' ',''), ',');
+    assert(length(trials_info) == Nepochs, 'You must provide trial information for all the epochs')
+    
+    for iEvent = 1:length(trials_info)
+       if strcmp(trials_info(iEvent), '1')
+            isIncluded(iEvent) = true;
+       elseif strcmp(trials_info(iEvent), '-1')
+            isIncluded(iEvent) = false;
+       else
+            error('Unknown trial status %s for trial %d', trials_info{iEvent}, iEvent )
+       end
     end
 end
 
