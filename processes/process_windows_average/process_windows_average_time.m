@@ -216,11 +216,17 @@ function [time, epochValues, Nepochs, includedTrials]=  windows_mean_based_on_ev
 %% we calculate the mean so that they are synchronised with events.  
 
     [nChanel, ~] = size(sInput.A);
+    
+    try
+        iEvent = find(strcmp({sInput.events.label}, options.Eventname));
+    catch
+        error('No event in the file');
+    end
 
-    iEvent = find(strcmp({sInput.events.label},options.Eventname));
     if isempty(iEvent) ||  isempty(sInput.events(iEvent).times )
         epochValues = [];
-        time  = [];
+        time  = []; includedTrials = [];
+        Nepochs  = 0;
         return; 
     end
     
