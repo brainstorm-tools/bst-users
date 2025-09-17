@@ -74,6 +74,13 @@ end
 %% ===== RUN =====
 function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
      OutputFiles= {};
+
+
+    % First handle all the case, where we have multiple files, or results
+    % files. For Result files, we also do the average on the data file to
+    % be able to still have a datafile supervising the results in the
+    % database. 
+
     if length(sInputs) > 1
         if strcmp(sInputs(1).FileType, 'data') 
 
@@ -100,7 +107,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                         OutputFiles{end+1} = OutputFile(iOutput).FileName;
                     end
                 end
-                
+
                 return;
             else
 
@@ -130,7 +137,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     end
 
 
-    % Apply the average on one specific file. 
+    % We finaly do the average on a specific file here. 
 
     OutputFiles  = {};
 
@@ -162,7 +169,6 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         sDataOut.F      = value;
         sDataOut.Events = [];
     elseif strcmp(sInputs.FileType, 'results') 
-
         sDataOut.ImageGridAmp = value;
     end
 
@@ -176,14 +182,14 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                                                                         
 end
 
-function [time,value,Nepochs]=  windows_mean_based_on_event( sInput, options )
-%% we calculate the mean so that they are synchronised with events. Each windows begin
-% n1 samples before events start and end n2 samples after
+function [time, epochValues, Nepochs]=  windows_mean_based_on_event( sInput, options )
+%% we calculate the mean so that they are synchronised with events.  
+
     [nChanel, ~] = size(sInput.A);
 
     iEvent = find(strcmp({sInput.events.label},options.Eventname));
     if isempty(iEvent) ||  isempty(sInput.events(iEvent).times )
-        value = [];
+        epochValues = [];
         time  = [];
         return; 
     end
@@ -192,32 +198,34 @@ function [time,value,Nepochs]=  windows_mean_based_on_event( sInput, options )
 
     data    = sInput.A;
     
-    win     = panel_time('GetTimeIndices', sInput.TimeVector, Event.times(1,1) + [ options.timewindow(1), options.timewindow(2) ]);
-    Ntime   = length(win);
+    Ntime   = getWindowDuration(sInput.TimeVector, Event, options.timewindow);
     time    = linspace(options.timewindow(1), options.timewindow(2), Ntime);
     
     
-    Nepochs = size(Event.times,2);
-    value = zeros(nChanel,Ntime,Nepochs);
-    
+    Nepochs     = size(Event.times,2);
+    epochValues = zeros(nChanel, Ntime, Nepochs);
+    isIncluded  = true(1, Nepochs);
     
     for iEpoch=1:Nepochs
         iTime = panel_time('GetTimeIndices', sInput.TimeVector, Event.times(1,iEpoch) + [ options.timewindow(1), options.timewindow(2) ]);
         
         if length(iTime) < Ntime
+            isIncluded(iEpoch) = false;
             continue
         end
         
         iTime = iTime(1:Ntime);
-        value(:,:,iEpoch) = data(:,iTime);
+        epochValues(:,:, iEpoch) = data(:,iTime);
 
         if options.remove_DC
             iBaseline = panel_time('GetTimeIndices', sInput.TimeVector, Event.times(1,iEpoch) + [ options.baselinewindow(1), options.baselinewindow(2) ]);
-            value(:,:,iEpoch) = value(:,:,iEpoch) - mean(data(:,iBaseline),2);
+            epochValues(:,:,iEpoch) = epochValues(:,:,iEpoch) - mean(data(:,iBaseline),2);
         end
     end
     
-    value = mean(value, 3);
+    epochValues     = mean(epochValues(:, :, isIncluded) , 3);
+    Nepochs         = sum(isIncluded);
+
 end
 
 
@@ -250,4 +258,21 @@ function [sDataIn, sInputIn] = load_input_data(sProcess, sInputs)
         
         sInputIn = struct('A', sDataIn.ImageGridAmp, 'TimeVector', sDataIn.Time,  'events', sData.Events); 
     end
+end
+
+
+function out = getWindowDuration(TimeVector, Event, timewindow)
+% Return the size of the window in sample.
+    
+    Nepochs = size(Event.times,2);
+    windowSize = zeros(1, Nepochs);
+
+    for iEpoch=1:Nepochs
+        iTime = panel_time('GetTimeIndices', TimeVector, Event.times(1,iEpoch) + [ timewindow(1), timewindow(2) ]);
+            
+        windowSize(iEpoch)  = length(iTime);
+    end
+    
+    out = max(windowSize);
+
 end
