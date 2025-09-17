@@ -214,8 +214,6 @@ end
 
 function [time, epochValues, Nepochs, includedTrials]=  windows_mean_based_on_event( sInput, options )
 %% we calculate the mean so that they are synchronised with events.  
-
-    [nChanel, ~] = size(sInput.A);
     
     try
         iEvent = find(strcmp({sInput.events.label}, options.Eventname));
@@ -239,7 +237,7 @@ function [time, epochValues, Nepochs, includedTrials]=  windows_mean_based_on_ev
     
     
     Nepochs     = size(Event.times,2);
-    epochValues = zeros(nChanel, Ntime, Nepochs);
+    epochValues = zeros(size(sInput.A), Ntime, Nepochs);
     isIncluded  = getTrialsInfo(Nepochs, options);
     
     for iEpoch=1:Nepochs
