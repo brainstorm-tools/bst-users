@@ -175,7 +175,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     
 
 
-    [time, value, nAvg] = windows_mean_based_on_event( sInputIn,  options  );
+    [time, value, nAvg, includedTrials] = windows_mean_based_on_event( sInputIn,  options  );
     
     if isempty(time)
         bst_report('Error',   sProcess, sInputIn, 'Event not found');
@@ -188,7 +188,8 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     sDataOut.Comment = [sDataOut.Comment sprintf(' | Avg: %s (%d) [%d,%ds] ',options.Eventname, ...
                                                                              nAvg, ...
                                                                              options.timewindow(1), options.timewindow(2))];
-
+    
+    sDataOut = bst_history('add',sDataOut, 'Compute', sprintf('Averaging trials:  %s', num2str(includedTrials)));
 
     if strcmp(sInputs.FileType, 'data') 
         sDataOut.F      = value;
@@ -207,7 +208,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                                                                         
 end
 
-function [time, epochValues, Nepochs]=  windows_mean_based_on_event( sInput, options )
+function [time, epochValues, Nepochs, includedTrials]=  windows_mean_based_on_event( sInput, options )
 %% we calculate the mean so that they are synchronised with events.  
 
     [nChanel, ~] = size(sInput.A);
@@ -250,7 +251,7 @@ function [time, epochValues, Nepochs]=  windows_mean_based_on_event( sInput, opt
     
     epochValues     = mean(epochValues(:, :, isIncluded) , 3);
     Nepochs         = sum(isIncluded);
-
+    includedTrials  = find(isIncluded);
 end
 
 
