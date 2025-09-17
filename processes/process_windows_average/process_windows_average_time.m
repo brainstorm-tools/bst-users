@@ -26,7 +26,7 @@ end
 
 
 %% ===== GET DESCRIPTION =====
-function sProcess = GetDescription() %#ok<DEFNU>
+function sProcess = GetDescription()
     % Description the process
     sProcess.Comment     = 'Windows Average';
     sProcess.FileTag     = 'WAvg';
@@ -79,15 +79,14 @@ end
 
 
 %% ===== FORMAT COMMENT =====
-function Comment = FormatComment(sProcess) %#ok<DEFNU>
+function Comment = FormatComment(sProcess)
     % Get time window
     Comment = [sProcess.Comment, ': [', process_extract_time('GetTimeString', sProcess), ']'];
 end
 
 
 %% ===== RUN =====
-function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
-     OutputFiles= {};
+function OutputFiles = Run(sProcess, sInputs) 
 
 
     % First handle all the case, where we have multiple files, or results
@@ -95,7 +94,9 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     % be able to still have a datafile supervising the results in the
     % database. 
 
+    OutputFiles= {};
     if length(sInputs) > 1
+
         if strcmp(sInputs(1).FileType, 'data') 
 
             for iFile = 1:length(sInputs)
@@ -107,9 +108,14 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                                                                                                 'filter_trials',   sProcess.options.filter_trials.Value, ...
                                                                                                 'trials_info',     sProcess.options.trials_info.Value);
             end
+            
+            return;
+        end
 
-        elseif strcmp(sInputs(1).FileType, 'results') 
+        if strcmp(sInputs(1).FileType, 'results') 
             unique_dataFile = unique({sInputs.DataFile});
+
+
             if length(unique_dataFile) > 1
 
                 for iDataFile = 1:length(unique_dataFile)
@@ -127,40 +133,38 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                 end
 
                 return;
-            else
-
-                new_dataFIle =     bst_process('CallProcess', 'process_windows_average_time',   unique_dataFile,    [], ...
-                                                                                                'Eventname',      sProcess.options.Eventname.Value, ...
-                                                                                                'timewindow',     sProcess.options.timewindow.Value{1} , ...
-                                                                                                'remove_DC',      sProcess.options.remove_DC.Value, ...
-                                                                                                'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
-                                                                                                'filter_trials',   sProcess.options.filter_trials.Value, ...
-                                                                                                'trials_info',     sProcess.options.trials_info.Value);
-
-                for iFile = 1:length(sInputs)
-                    OutputFile  =     bst_process('CallProcess', 'process_windows_average_time', {sInputs(iFile).FileName},    [], ...
-                                                                                    'Eventname',      sProcess.options.Eventname.Value, ...
-                                                                                    'timewindow',     sProcess.options.timewindow.Value{1} , ...
-                                                                                    'remove_DC',      sProcess.options.remove_DC.Value, ...
-                                                                                    'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
-                                                                                    'filter_trials',  sProcess.options.filter_trials.Value, ...
-                                                                                    'trials_info',    sProcess.options.trials_info.Value, ...
-                                                                                    'new_dataFIle',   new_dataFIle.FileName );
-
-                    OutputFiles{end+1} = OutputFile.FileName;
-                end
-
             end
-        else
-            OutputFiles = {};
+            
+            new_dataFIle =  bst_process('CallProcess', 'process_windows_average_time',   unique_dataFile,    [], ...
+                                                                                            'Eventname',      sProcess.options.Eventname.Value, ...
+                                                                                            'timewindow',     sProcess.options.timewindow.Value{1} , ...
+                                                                                            'remove_DC',      sProcess.options.remove_DC.Value, ...
+                                                                                            'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
+                                                                                            'filter_trials',   sProcess.options.filter_trials.Value, ...
+                                                                                            'trials_info',     sProcess.options.trials_info.Value);
+
+            for iFile = 1:length(sInputs)
+                OutputFile  =  bst_process('CallProcess', 'process_windows_average_time', {sInputs(iFile).FileName},    [], ...
+                                                                                'Eventname',      sProcess.options.Eventname.Value, ...
+                                                                                'timewindow',     sProcess.options.timewindow.Value{1} , ...
+                                                                                'remove_DC',      sProcess.options.remove_DC.Value, ...
+                                                                                'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
+                                                                                'filter_trials',  sProcess.options.filter_trials.Value, ...
+                                                                                'trials_info',    sProcess.options.trials_info.Value, ...
+                                                                                'new_dataFIle',   new_dataFIle.FileName );
+
+                OutputFiles{end+1} = OutputFile.FileName;
+            end
+            
+            return;
         end
 
+        OutputFiles = {};
         return;
     end
 
 
     % We finaly do the average on a specific file here. 
-
     OutputFiles  = {};
 
 
@@ -271,14 +275,8 @@ function [sDataIn, sInputIn] = load_input_data(sProcess, sInputs)
         if isfield(sProcess.options, 'new_dataFIle') && ~isempty(sProcess.options.new_dataFIle)
             sDataIn.DataFile = sProcess.options.new_dataFIle.Value;
         else
-            
-            new_dataFIle =     bst_process('CallProcess', 'process_windows_average_time', {sInputs.DataFile},    [], ...
-                'Eventname',      sProcess.options.Eventname.Value, ...
-                'timewindow',     sProcess.options.timewindow.Value{1} , ...
-                'remove_DC',      sProcess.options.remove_DC.Value, ...
-                'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
-                'overwrite',      0);
-            sDataIn.DataFile =   new_dataFIle.FileName;
+            sDataIn.DataFile = [];
+            warning('No new data file found')
         end
         
         
