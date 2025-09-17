@@ -19,7 +19,7 @@ function varargout = process_windows_average_time( varargin )
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Edouard Delaire, 2018
+% Authors: Edouard Delaire, 2018, 2025
 
 eval(macro_method);
 end
@@ -88,7 +88,20 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         elseif strcmp(sInputs(1).FileType, 'results') 
             unique_dataFile = unique({sInputs.DataFile});
             if length(unique_dataFile) > 1
-                % todo
+
+                for iDataFile = 1:length(unique_dataFile)
+                    iFile  = find( strcmp( {sInputs.DataFile} , unique_dataFile{iDataFile}));
+                    OutputFile  =     bst_process('CallProcess', 'process_windows_average_time',   {sInputs(iFile).FileName},    [], ...
+                                                                                                    'Eventname',      sProcess.options.Eventname.Value, ...
+                                                                                                    'timewindow',     sProcess.options.timewindow.Value{1} , ...
+                                                                                                    'remove_DC',      sProcess.options.remove_DC.Value, ...
+                                                                                                    'baselinewindow', sProcess.options.baselinewindow.Value{1} );
+                    for iOutput = 1:length(OutputFile)
+                        OutputFiles{end+1} = OutputFile(iOutput).FileName;
+                    end
+                end
+                
+                return;
             else
 
                 new_dataFIle =     bst_process('CallProcess', 'process_windows_average_time',   unique_dataFile,    [], ...
@@ -217,7 +230,7 @@ function [sDataIn, sInputIn] = load_input_data(sProcess, sInputs)
         sInputIn = struct('A', sDataIn.F, 'TimeVector', sDataIn.Time,  'events', sDataIn.Events); 
         
     elseif strcmp(sInputs.FileType, 'results') 
-        sDataIn = in_bst_results(sInputs.FileName);
+        sDataIn = in_bst_results(sInputs.FileName, 1);
         sData = in_bst_data(sInputs.DataFile,'Events');
         
         
