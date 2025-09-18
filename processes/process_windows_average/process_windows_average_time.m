@@ -237,7 +237,7 @@ function [time, epochValues, Nepochs, includedTrials]=  windows_mean_based_on_ev
     
     
     Nepochs     = size(Event.times,2);
-    epochValues = zeros(size(sInput.A), Ntime, Nepochs);
+    epochValues = zeros(size(sInput.A, 1), Ntime, Nepochs);
     isIncluded  = getTrialsInfo(Nepochs, options);
     
     for iEpoch=1:Nepochs
