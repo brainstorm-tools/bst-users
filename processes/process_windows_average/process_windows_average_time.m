@@ -42,6 +42,10 @@ function sProcess = GetDescription()
     sProcess.nInputs     = 1;
     sProcess.nMinFiles   = 1;
     
+     % === FUNCTION
+    sProcess.options.label1.Comment = '<U><B>Import in database</B></U>:';
+    sProcess.options.label1.Type    = 'label';
+
     % Definition of the options
     sProcess.options.Eventname.Comment = 'Event name: ';
     sProcess.options.Eventname.Type    = 'text';
@@ -65,6 +69,9 @@ function sProcess = GetDescription()
     sProcess.options.baselinewindow.Class   = 'dc_offset';
 
     % === Filter bad trials
+    sProcess.options.label2.Comment = '<U><B>Reject Trials</B></U>:';
+    sProcess.options.label2.Type    = 'label';
+
     sProcess.options.filter_trials.Comment    = 'Filter bad trials';
     sProcess.options.filter_trials.Type       = 'checkbox';
     sProcess.options.filter_trials.Value      = 0;
@@ -74,6 +81,21 @@ function sProcess = GetDescription()
     sProcess.options.trials_info.Type    = 'text';
     sProcess.options.trials_info.Value   = '';     
     sProcess.options.trials_info.Class   = 'trials_info';
+
+
+    % === FUNCTION
+    sProcess.options.label3.Comment = '<U><B>Apply function</B></U>:';
+    sProcess.options.label3.Type    = 'label';
+
+    sProcess.options.avg_func.Type    = 'radio_label';
+    sProcess.options.avg_func.Comment = {'Arithmetic average:  <FONT color="#777777">mean(x)</FONT>', ...
+                                         'Standard deviation:  <FONT color="#777777">sqrt(var(x))</FONT>', ...
+                                         'Standard error:  <FONT color="#777777">sqrt(var(x)/N)</FONT>', ...
+                                         'Arithmetic average + Standard deviation', ...
+                                         'Arithmetic average + Standard error', ...
+                                         'Median:  <FONT color="#777777">median(x)</FONT>'; ... 
+                                         'mean', 'std', 'stderr','mean+std', 'mean+stderr', 'median'};                           
+    sProcess.options.avg_func.Value   = 'mean';
 
 end
 
@@ -106,7 +128,8 @@ function OutputFiles = Run(sProcess, sInputs)
                                                                                                 'remove_DC',      sProcess.options.remove_DC.Value, ...
                                                                                                 'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
                                                                                                 'filter_trials',   sProcess.options.filter_trials.Value, ...
-                                                                                                'trials_info',     sProcess.options.trials_info.Value);
+                                                                                                'trials_info',     sProcess.options.trials_info.Value, ...
+                                                                                                'avg_func', sProcess.options.avg_func.Value);
             end
             
             return;
@@ -126,7 +149,8 @@ function OutputFiles = Run(sProcess, sInputs)
                                                                                                     'remove_DC',      sProcess.options.remove_DC.Value, ...
                                                                                                     'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
                                                                                                     'filter_trials',   sProcess.options.filter_trials.Value, ...
-                                                                                                    'trials_info',     sProcess.options.trials_info.Value);
+                                                                                                    'trials_info',     sProcess.options.trials_info.Value, ...
+                                                                                                    'avg_func', sProcess.options.avg_func.Value);
                     for iOutput = 1:length(OutputFile)
                         OutputFiles{end+1} = OutputFile(iOutput).FileName;
                     end
@@ -140,8 +164,9 @@ function OutputFiles = Run(sProcess, sInputs)
                                                                                             'timewindow',     sProcess.options.timewindow.Value{1} , ...
                                                                                             'remove_DC',      sProcess.options.remove_DC.Value, ...
                                                                                             'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
-                                                                                            'filter_trials',   sProcess.options.filter_trials.Value, ...
-                                                                                            'trials_info',     sProcess.options.trials_info.Value);
+                                                                                            'filter_trials',  sProcess.options.filter_trials.Value, ...
+                                                                                            'trials_info',    sProcess.options.trials_info.Value, ...
+                                                                                            'avg_func',       sProcess.options.avg_func.Value);
 
             for iFile = 1:length(sInputs)
                 OutputFile  =  bst_process('CallProcess', 'process_windows_average_time', {sInputs(iFile).FileName},    [], ...
@@ -151,6 +176,7 @@ function OutputFiles = Run(sProcess, sInputs)
                                                                                 'baselinewindow', sProcess.options.baselinewindow.Value{1}, ...
                                                                                 'filter_trials',  sProcess.options.filter_trials.Value, ...
                                                                                 'trials_info',    sProcess.options.trials_info.Value, ...
+                                                                                'avg_func',       sProcess.options.avg_func.Value, ...
                                                                                 'new_dataFIle',   new_dataFIle.FileName );
 
                 OutputFiles{end+1} = OutputFile.FileName;
@@ -176,25 +202,24 @@ function OutputFiles = Run(sProcess, sInputs)
                                  'Eventname',       sProcess.options.Eventname.Value, ...
                                  'filter_trials',   sProcess.options.filter_trials.Value, ...
                                  'trials_info',     sProcess.options.trials_info.Value, ...
-                                 'applied_function', 'mean');
+                                 'avg_func',        sProcess.options.avg_func.Value);
     
 
 
-    [time, trialValues, includedTrials]= getTrials( sInputIn,  options  );
+    [time, trialValues, includedTrials] = getTrials( sInputIn,  options  );
     
     if isempty(includedTrials)
         bst_report('Error',   sProcess, sInputIn, 'Event not found');
     end    
     
-     [meanValue, stdValue] = apply_function(trialValues, options.applied_function);
-
-
+    [strComment, meanValue, stdValue] = apply_function(trialValues, options.avg_func);
     sDataOut        = sDataIn; 
     sDataOut.Time   = time; 
     sDataOut.nAvg   = length(includedTrials);
-    sDataOut.Comment = [sDataOut.Comment sprintf(' | Avg: %s (%d) [%d,%ds] ',options.Eventname, ...
-                                                                             length(includedTrials), ...
-                                                                             options.timewindow(1), options.timewindow(2))];
+    sDataOut.Comment = [sDataOut.Comment sprintf(' | %s : %s (%d) [%d,%ds] ', strComment, ...
+                                                                              options.Eventname, ...
+                                                                              length(includedTrials), ...
+                                                                              options.timewindow(1), options.timewindow(2))];
     
     sDataOut = bst_history('add',sDataOut, 'Compute', sprintf('Averaging trials:  %s', num2str(includedTrials)));
 
@@ -267,20 +292,40 @@ function [time, epochValues, includedTrials] = getTrials(sInput, options )
     includedTrials  = find(isIncluded);
 end
 
-function [meanValue, stdValue] = apply_function(trialValues, appliedFunction )
-    
+function [strComment, meanValue, stdValue] = apply_function(trialValues, appliedFunction )
+% apply the function applied function to sumarize the trials values. 
+% Accepted function: 'mean',  'std', 'stderr','mean+std', 'mean+stderr', 'median'
     switch(appliedFunction)
 
         case 'mean'
 
             meanValue     = mean(trialValues, 3);
             stdValue      = [];
-
+            strComment       = 'Avg';
+        case 'std'
+            meanValue     = std(trialValues, [], 3);
+            stdValue      = [];
+            strComment = 'Std';
+        case 'stderr'
+            meanValue     = std(trialValues, [], 3) / sqrt(size(trialValues, 3));
+            stdValue      = [];
+            strComment = 'StdError';
+        case 'mean+std'
+            meanValue     = mean(trialValues, 3);
+            stdValue      = std(trialValues, [], 3);
+            strComment = 'AvgStd';
+        case 'mean+stderr'
+            meanValue     = mean(trialValues, 3);
+            stdValue      = std(trialValues, [], 3) / sqrt(size(trialValues, 3));
+            strComment = 'AvgStderr';
+        case 'median'
+            meanValue     = median(trialValues, 3);
+            stdValue      = [];
+            strComment = 'Median';
         otherwise
             
             error('Function %s is not recognized', appliedFunction)
     end
-
 
 end
 
