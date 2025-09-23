@@ -175,31 +175,37 @@ function OutputFiles = Run(sProcess, sInputs)
                                  'baselinewindow',  sProcess.options.baselinewindow.Value{1}, ...
                                  'Eventname',       sProcess.options.Eventname.Value, ...
                                  'filter_trials',   sProcess.options.filter_trials.Value, ...
-                                 'trials_info',     sProcess.options.trials_info.Value);
+                                 'trials_info',     sProcess.options.trials_info.Value, ...
+                                 'applied_function', 'mean');
     
 
 
-    [time, value, nAvg, includedTrials] = windows_mean_based_on_event( sInputIn,  options  );
+    [time, trialValues, includedTrials]= getTrials( sInputIn,  options  );
     
-    if isempty(time)
+    if isempty(includedTrials)
         bst_report('Error',   sProcess, sInputIn, 'Event not found');
     end    
+    
+     [meanValue, stdValue] = apply_function(trialValues, options.applied_function);
 
 
     sDataOut        = sDataIn; 
     sDataOut.Time   = time; 
-    sDataOut.nAvg   = nAvg;
+    sDataOut.nAvg   = length(includedTrials);
     sDataOut.Comment = [sDataOut.Comment sprintf(' | Avg: %s (%d) [%d,%ds] ',options.Eventname, ...
-                                                                             nAvg, ...
+                                                                             length(includedTrials), ...
                                                                              options.timewindow(1), options.timewindow(2))];
     
     sDataOut = bst_history('add',sDataOut, 'Compute', sprintf('Averaging trials:  %s', num2str(includedTrials)));
 
     if strcmp(sInputs.FileType, 'data') 
-        sDataOut.F      = value;
+        sDataOut.F      = meanValue;
+        sDataOut.Std    = stdValue;
         sDataOut.Events = [];
+
     elseif strcmp(sInputs.FileType, 'results') 
-        sDataOut.ImageGridAmp = value;
+        sDataOut.ImageGridAmp   = meanValue;
+        sDataOut.Std            = stdValue;
     end
 
     sStudy = bst_get('Study', sInputs.iStudy);
@@ -212,9 +218,9 @@ function OutputFiles = Run(sProcess, sInputs)
                                                                         
 end
 
-function [time, epochValues, Nepochs, includedTrials]=  windows_mean_based_on_event( sInput, options )
-%% we calculate the mean so that they are synchronised with events.  
-    
+function [time, epochValues, includedTrials] = getTrials(sInput, options )
+% Return all the trials for the specified event. 
+
     try
         iEvent = find(strcmp({sInput.events.label}, options.Eventname));
     catch
@@ -224,7 +230,6 @@ function [time, epochValues, Nepochs, includedTrials]=  windows_mean_based_on_ev
     if isempty(iEvent) ||  isempty(sInput.events(iEvent).times )
         epochValues = [];
         time  = []; includedTrials = [];
-        Nepochs  = 0;
         return; 
     end
     
@@ -257,11 +262,27 @@ function [time, epochValues, Nepochs, includedTrials]=  windows_mean_based_on_ev
         end
     end
     
-    epochValues     = mean(epochValues(:, :, isIncluded) , 3);
-    Nepochs         = sum(isIncluded);
+
+    epochValues     = epochValues(:, : , isIncluded);
     includedTrials  = find(isIncluded);
 end
 
+function [meanValue, stdValue] = apply_function(trialValues, appliedFunction )
+    
+    switch(appliedFunction)
+
+        case 'mean'
+
+            meanValue     = mean(trialValues, 3);
+            stdValue      = [];
+
+        otherwise
+            
+            error('Function %s is not recognized', appliedFunction)
+    end
+
+
+end
 
 
 function [sDataIn, sInputIn] = load_input_data(sProcess, sInputs)
